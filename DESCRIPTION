@@ -1,0 +1,30 @@
+Package: situas
+Type: Package
+Title: Client for the SITUAS API - Italian Territorial Codes and Classifications
+Version: 0.1.0
+Authors@R: person(
+    given = "Giampaolo",
+    family = "Montaletti",
+    role = c("aut", "cre"),
+    email = "giampaolo.montaletti@gmail.com",
+    comment = c(ORCID = "0009-0002-5327-1122")
+  )
+Description: Provides functions to download and cache territorial codes and
+    classifications from the SITUAS API (https://situas.istat.it), maintained
+    by ISTAT (Italian National Institute of Statistics). Enables reclassification
+    of old territorial codes to new ones and batch detection/cleaning of
+    territorial codes in datasets.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+Imports:
+    data.table,
+    httr,
+    jsonlite,
+    tools
+Suggests:
+    testthat (>= 3.0.0),
+    mockery,
+    withr
+RoxygenNote: 7.3.2
+Config/testthat/edition: 3

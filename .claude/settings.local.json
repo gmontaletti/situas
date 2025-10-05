@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__r-btw__btw_tool_files_read_text_file",
+      "WebFetch(domain:situas.istat.it)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(Rscript:*)",
+      "Bash(tree:*)",
+      "Bash(git init:*)",
+      "Bash(git config:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
