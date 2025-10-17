@@ -1,7 +1,7 @@
 Package: situas
 Type: Package
 Title: Client for the SITUAS API - Italian Territorial Codes and Classifications
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: person(
     given = "Giampaolo",
     family = "Montaletti",
@@ -21,10 +21,17 @@ Imports:
     data.table,
     httr,
     jsonlite,
-    tools
+    tools,
+    openxlsx,
+    sf,
+    geojsonio,
+    leaflet
 Suggests:
     testthat (>= 3.0.0),
     mockery,
-    withr
-RoxygenNote: 7.3.2
+    withr,
+    rmapshaper,
+    rvest,
+    polite
+RoxygenNote: 7.3.3
 Config/testthat/edition: 3
