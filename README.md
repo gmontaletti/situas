@@ -1,6 +1,6 @@
 # situas - R Client for SITUAS API
 
-[![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)](https://github.com/gmontaletti/situas)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/gmontaletti/situas)
 
 R package for accessing the SITUAS (Sistema Informativo Territoriale delle Unità Amministrative e Statistiche) API - a set of APIs built by ISTAT (Italian National Institute for Statistics) to retrieve territorial codes and classifications.
 
@@ -29,7 +29,7 @@ If you use this package in your research, please cite it as:
 
 ```
 Montaletti, G. (2025). situas: Client for the SITUAS API - Italian Territorial Codes and Classifications.
-R package version 0.1.1. https://github.com/gmontaletti/situas
+R package version 0.2.0. https://github.com/gmontaletti/situas
 ```
 
 ## Author
