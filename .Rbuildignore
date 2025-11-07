@@ -1,2 +1,10 @@
 ^renv$
 ^renv\.lock$
+^.*\.Rproj$
+^\.Rproj\.user$
+^data-raw$
+^\.claude$
+^data-raw/Com01012025_g$
+^data-raw/ProvCM01012025_g$
+^data-raw/Reg01012025_g$
+^data-raw/RipGeo01012025_g$

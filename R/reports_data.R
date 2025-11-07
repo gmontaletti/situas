@@ -1,0 +1,43 @@
+#' SITUAS Reports Metadata (Internal)
+#'
+#' Internal dataset containing metadata about all available SITUAS API reports.
+#' This data is used internally by package functions to validate report IDs,
+#' provide helpful error messages, and determine report types.
+#'
+#' @format A data.table with the following columns:
+#' \describe{
+#'   \item{pfun}{Integer. Report ID (function number) used in API calls}
+#'   \item{title}{Character. Full title of the report in Italian}
+#'   \item{date_range}{Character. Validity period of the report (format: DD/MM/YYYY - DD/MM/YYYY)}
+#'   \item{analysis_type}{Character. Type of temporal analysis:
+#'     \itemize{
+#'       \item DATA: Single date parameter
+#'       \item PERIODO: Date range parameters (start and end)
+#'       \item ATTUALIZZAZIONE: Actualization/translation (uses date range like PERIODO)
+#'     }
+#'   }
+#'   \item{info}{Character. Additional information about the report (may be NA)}
+#' }
+#'
+#' @details
+#' This dataset is stored in \code{R/sysdata.rda} and is not exported to package users.
+#' It is automatically loaded when the package is loaded and is available to all
+#' internal package functions.
+#'
+#' The data originates from the \code{situas_api.xlsx} file and is processed by
+#' the \code{data-raw/prepare_reports_data.R} script. To update this data when
+#' new reports are added to the SITUAS API, update the Excel file and re-run
+#' the preparation script.
+#'
+#' @section API Mapping:
+#' For API calls:
+#' \itemize{
+#'   \item \strong{DATA} reports: Use single \code{pdata} parameter
+#'   \item \strong{PERIODO} reports: Use \code{pdatada} (start) and \code{pdataa} (end)
+#'   \item \strong{ATTUALIZZAZIONE} reports: Treated as PERIODO (use date range)
+#' }
+#'
+#' @keywords internal
+#' @name situas_reports_metadata
+#' @docType data
+NULL

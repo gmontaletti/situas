@@ -1,6 +1,58 @@
 # Test suite for get_tables.R
 # Tests for get_situas_tables() - the main exported function
 
+# Tests for pfun validation
+
+test_that("get_situas_tables() validates pfun against metadata", {
+  skip_if_offline()
+  skip_on_cran()
+
+  # Test with invalid pfun
+  expect_error(
+    get_situas_tables(pfun = 999999, verbose = FALSE),
+    "Report ID 999999 is not in the list of known SITUAS reports"
+  )
+})
+
+test_that("get_situas_tables() suggests nearby report IDs for invalid pfun", {
+  skip_if_offline()
+  skip_on_cran()
+
+  # Test with pfun close to valid ones
+  expect_error(
+    get_situas_tables(pfun = 60, verbose = FALSE),
+    "Nearby report IDs"
+  )
+})
+
+test_that("get_situas_tables() shows report information when verbose", {
+  skip_if_offline()
+  skip_on_cran()
+
+  # Test with valid pfun - check for correct report title
+  expect_message(
+    get_situas_tables(pfun = 61, verbose = TRUE),
+    "Report 61:.*Elenco dei codici"
+  )
+})
+
+test_that("get_situas_tables() validates pfun parameter type", {
+  expect_error(
+    get_situas_tables(pfun = "61"),
+    "pfun must be a single integer"
+  )
+
+  expect_error(
+    get_situas_tables(pfun = 61.5),
+    "pfun must be a single integer"
+  )
+
+  expect_error(
+    get_situas_tables(pfun = c(61, 62)),
+    "pfun must be a single integer"
+  )
+})
+
 # Helper function to create mock API response
 create_mock_response <- function(n_items = 3) {
   list(
@@ -73,6 +125,11 @@ test_that("get_situas_tables() validates verbose parameter", {
 
   expect_error(
     get_situas_tables(verbose = c(TRUE, FALSE)),
+    "verbose must be logical"
+  )
+
+  expect_error(
+    get_situas_tables(verbose = NA),
     "verbose must be logical"
   )
 })
@@ -452,4 +509,219 @@ test_that("get_situas_tables() complete workflow: no cache -> download -> cache"
 
   expect_s3_class(result, "data.table")
   expect_equal(nrow(result), 3)
+})
+
+# Tests for report type detection and date_end parameter
+
+test_that("get_situas_tables() requires date_end for PERIODO reports", {
+  skip_if_offline()
+  skip_on_cran()
+
+  # Test with PERIODO report without date_end
+  # First, find a PERIODO type report from metadata
+  periodo_reports <- situas_reports_metadata[analysis_type == "PERIODO"]
+
+  if (nrow(periodo_reports) > 0) {
+    periodo_pfun <- periodo_reports$pfun[1]
+
+    expect_error(
+      get_situas_tables(pfun = periodo_pfun, date = Sys.Date(), verbose = FALSE),
+      "is a PERIODO type report and requires both date \\(start\\) and date_end parameters"
+    )
+  } else {
+    skip("No PERIODO type reports available in metadata")
+  }
+})
+
+test_that("get_situas_tables() requires date_end for ATTUALIZZAZIONE reports", {
+  skip_if_offline()
+  skip_on_cran()
+
+  # Test with ATTUALIZZAZIONE report without date_end
+  attualizzazione_reports <- situas_reports_metadata[analysis_type == "ATTUALIZZAZIONE"]
+
+  if (nrow(attualizzazione_reports) > 0) {
+    attualizzazione_pfun <- attualizzazione_reports$pfun[1]
+
+    expect_error(
+      get_situas_tables(pfun = attualizzazione_pfun, date = Sys.Date(), verbose = FALSE),
+      "is a ATTUALIZZAZIONE type report and requires both date \\(start\\) and date_end parameters"
+    )
+  } else {
+    skip("No ATTUALIZZAZIONE type reports available in metadata")
+  }
+})
+
+test_that("get_situas_tables() warns when date_end provided for DATA reports", {
+  skip_if_offline()
+  skip_on_cran()
+
+  # Test with DATA report with date_end
+  # Report 61 (municipalities) is a DATA type report
+  expect_warning(
+    get_situas_tables(
+      pfun = 61,
+      date = Sys.Date(),
+      date_end = Sys.Date() + 30,
+      verbose = FALSE
+    ),
+    "Report 61 is a DATA type report. The date_end parameter will be ignored."
+  )
+})
+
+test_that("get_situas_tables() accepts date_end for PERIODO reports", {
+  skip_if_offline()
+  skip_on_cran()
+
+  periodo_reports <- situas_reports_metadata[analysis_type == "PERIODO"]
+
+  if (nrow(periodo_reports) > 0) {
+    periodo_pfun <- periodo_reports$pfun[1]
+
+    # Should not throw error when date_end is provided
+    expect_error(
+      get_situas_tables(
+        pfun = periodo_pfun,
+        date = as.Date("2020-01-01"),
+        date_end = as.Date("2025-01-01"),
+        verbose = FALSE
+      ),
+      NA  # Expect no error
+    )
+  } else {
+    skip("No PERIODO type reports available in metadata")
+  }
+})
+
+test_that("get_situas_tables() creates correct cache key for DATA reports", {
+  skip_if_not_installed("mockery")
+
+  # Mock functions
+  mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
+
+  # Track the cache key used
+  cache_keys <- character(0)
+  mock_save <- function(data, key) {
+    cache_keys <<- c(cache_keys, key)
+    TRUE
+  }
+
+  mockery::stub(get_situas_tables, "save_to_cache", mock_save)
+  mockery::stub(get_situas_tables, "situas_get_report_data",
+                data.table::data.table(id = 1, name = "Test"))
+
+  # Call with DATA report (pfun 61)
+  test_date <- as.Date("2020-01-01")
+  get_situas_tables(pfun = 61, date = test_date, verbose = FALSE)
+
+  # Check cache key format
+  expected_key <- "situas_report_61_20200101"
+  expect_equal(cache_keys[1], expected_key)
+})
+
+test_that("get_situas_tables() creates correct cache key for PERIODO reports", {
+  skip_if_not_installed("mockery")
+
+  # Find a PERIODO report
+  periodo_reports <- situas_reports_metadata[analysis_type == "PERIODO"]
+
+  if (nrow(periodo_reports) > 0) {
+    periodo_pfun <- periodo_reports$pfun[1]
+
+    # Mock functions
+    mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
+
+    # Track the cache key used
+    cache_keys <- character(0)
+    mock_save <- function(data, key) {
+      cache_keys <<- c(cache_keys, key)
+      TRUE
+    }
+
+    mockery::stub(get_situas_tables, "save_to_cache", mock_save)
+    mockery::stub(get_situas_tables, "situas_get_report_data",
+                  data.table::data.table(id = 1, name = "Test"))
+
+    # Call with PERIODO report
+    test_date_start <- as.Date("2020-01-01")
+    test_date_end <- as.Date("2025-01-01")
+    get_situas_tables(
+      pfun = periodo_pfun,
+      date = test_date_start,
+      date_end = test_date_end,
+      verbose = FALSE
+    )
+
+    # Check cache key format includes both dates
+    expected_key <- paste0("situas_report_", periodo_pfun, "_20200101_20250101")
+    expect_equal(cache_keys[1], expected_key)
+  } else {
+    skip("No PERIODO type reports available in metadata")
+  }
+})
+
+test_that("get_situas_tables() shows correct verbose message for PERIODO reports", {
+  skip_if_not_installed("mockery")
+
+  periodo_reports <- situas_reports_metadata[analysis_type == "PERIODO"]
+
+  if (nrow(periodo_reports) > 0) {
+    periodo_pfun <- periodo_reports$pfun[1]
+
+    # Mock functions
+    mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
+    mockery::stub(get_situas_tables, "save_to_cache", TRUE)
+    mockery::stub(get_situas_tables, "situas_get_report_data",
+                  data.table::data.table(id = 1, name = "Test"))
+
+    # Call with PERIODO report and verbose = TRUE
+    expect_message(
+      get_situas_tables(
+        pfun = periodo_pfun,
+        date = as.Date("2020-01-01"),
+        date_end = as.Date("2025-01-01"),
+        verbose = TRUE
+      ),
+      "Downloading data for period 2020-01-01 to 2025-01-01"
+    )
+  } else {
+    skip("No PERIODO type reports available in metadata")
+  }
+})
+
+test_that("get_situas_tables() passes date_end to situas_get_report_data", {
+  skip_if_not_installed("mockery")
+
+  periodo_reports <- situas_reports_metadata[analysis_type == "PERIODO"]
+
+  if (nrow(periodo_reports) > 0) {
+    periodo_pfun <- periodo_reports$pfun[1]
+
+    # Mock functions
+    mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
+    mockery::stub(get_situas_tables, "save_to_cache", TRUE)
+
+    # Create mock to track calls
+    mock_get_report <- mockery::mock(data.table::data.table(id = 1, name = "Test"))
+    mockery::stub(get_situas_tables, "situas_get_report_data", mock_get_report)
+
+    # Call with PERIODO report
+    test_date_start <- as.Date("2020-01-01")
+    test_date_end <- as.Date("2025-01-01")
+    get_situas_tables(
+      pfun = periodo_pfun,
+      date = test_date_start,
+      date_end = test_date_end,
+      verbose = FALSE
+    )
+
+    # Check that situas_get_report_data was called with correct arguments
+    mockery::expect_called(mock_get_report, 1)
+    call_args <- mockery::mock_args(mock_get_report)[[1]]
+    expect_equal(call_args$pfun, periodo_pfun)
+    expect_equal(call_args$date, test_date_start)
+    expect_equal(call_args$date_end, test_date_end)
+  } else {
+    skip("No PERIODO type reports available in metadata")
+  }
 })

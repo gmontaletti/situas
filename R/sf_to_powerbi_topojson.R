@@ -71,8 +71,8 @@
 #'   \item 0.5 = keep 50% of points (gentle simplification)
 #' }
 #'
-#' Requires the rmapshaper package. Simplification uses topology-preserving
-#' algorithms that maintain shared boundaries between adjacent polygons.
+#' Simplification uses topology-preserving algorithms that maintain shared
+#' boundaries between adjacent polygons.
 #'
 #' \strong{Using in Power BI:}
 #' Once you have created the .json file:
@@ -90,13 +90,11 @@
 #'     }
 #' }
 #'
-#' \strong{Export Methods:}
-#' The function uses two methods to create TopoJSON:
-#' \enumerate{
-#'   \item Primary: \code{geojsonio::topojson_write()} - direct conversion
-#'   \item Fallback: \code{sf::st_write()} to GeoJSON, then
-#'     \code{geojsonio::geo2topo()} - used if primary method fails
-#' }
+#' \strong{Export Method:}
+#' The function uses \code{geojsonio::topojson_write()} with high quantization
+#' (1e5) to create Power BI-compatible TopoJSON files with optimal topology
+#' preservation and precision. Optional geometry simplification is available
+#' via \code{rmapshaper::ms_simplify()} when \code{simplify = TRUE}.
 #'
 #' @export
 #'
@@ -373,15 +371,19 @@ sf_to_powerbi_topojson <- function(sf_data,
     }
   }
 
-  # Try primary method: geojsonio::topojson_write
+  # Export TopoJSON using geojsonio with high quantization
   tryCatch(
     {
-      geojsonio::topojson_write(
-        sf_data,
-        file = file,
-        object_name = object_name,
-        overwrite = TRUE
-      )
+      # Suppress harmless warnings from geojsonio about class comparisons
+      suppressWarnings({
+        geojsonio::topojson_write(
+          sf_data,
+          file = file,
+          object_name = object_name,
+          quantization = 1e5,  # High quantization for precision (as per user request)
+          overwrite = TRUE
+        )
+      })
 
       if (verbose && file.exists(file)) {
         file_size <- file.size(file)
@@ -402,9 +404,10 @@ sf_to_powerbi_topojson <- function(sf_data,
         {
           sf::st_write(sf_data, dsn = temp_geojson, driver = "GeoJSON", quiet = TRUE)
 
-          # Read as text and convert to TopoJSON
+          # Read as text and convert to TopoJSON with quantization
           geojson_text <- paste(readLines(temp_geojson, warn = FALSE), collapse = "\n")
-          topo <- geojsonio::geo2topo(geojson_text, object_name = object_name)
+          topo <- geojsonio::geo2topo(geojson_text, object_name = object_name,
+                                      quantization = 1e5)
 
           # Write TopoJSON
           writeLines(topo, file)

@@ -9,7 +9,20 @@
       "Bash(tree:*)",
       "Bash(git init:*)",
       "Bash(git config:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(gh auth:*)",
+      "Read(//Users/giampaolomontaletti/Library/Caches/org.R-project.R/R/situas/**)",
+      "WebSearch",
+      "WebFetch(domain:www.istat.it)",
+      "WebFetch(domain:ondata.github.io)",
+      "WebFetch(domain:github.com)",
+      "Bash(for id in 1 2 3 60 61 62 100)",
+      "Bash(do echo \"=== Testing pfun=$id ===\")",
+      "Bash(done)",
+      "Bash(bash:*)",
+      "WebFetch(domain:urponline.lavoro.gov.it)",
+      "WebFetch(domain:dataveld.com)",
+      "Bash(R -e:*)"
     ],
     "deny": [],
     "ask": []

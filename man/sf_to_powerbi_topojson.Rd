@@ -98,8 +98,8 @@ parameter controls how much simplification occurs:
   \item 0.5 = keep 50% of points (gentle simplification)
 }
 
-Requires the rmapshaper package. Simplification uses topology-preserving
-algorithms that maintain shared boundaries between adjacent polygons.
+Simplification uses topology-preserving algorithms that maintain shared
+boundaries between adjacent polygons.
 
 \strong{Using in Power BI:}
 Once you have created the .json file:
@@ -117,13 +117,11 @@ Once you have created the .json file:
     }
 }
 
-\strong{Export Methods:}
-The function uses two methods to create TopoJSON:
-\enumerate{
-  \item Primary: \code{geojsonio::topojson_write()} - direct conversion
-  \item Fallback: \code{sf::st_write()} to GeoJSON, then
-    \code{geojsonio::geo2topo()} - used if primary method fails
-}
+\strong{Export Method:}
+The function uses \code{geojsonio::topojson_write()} with high quantization
+(1e5) to create Power BI-compatible TopoJSON files with optimal topology
+preservation and precision. Optional geometry simplification is available
+via \code{rmapshaper::ms_simplify()} when \code{simplify = TRUE}.
 }
 \examples{
 \dontrun{
