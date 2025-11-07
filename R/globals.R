@@ -17,9 +17,25 @@ utils::globalVariables(c(
   "file_size",
   "link_text",
 
+  # download_boundaries.R variables
+  "date",
+  "territorial_level",
+  "source",
+  "download_timestamp",
+  "file_size_mb",
+  "rank",
+  "current_date",
+  "latest_date",
+  "update_available",
+  "current_source",
+  "exists",
+  "year",
+
   # data.table special symbols
   ":=",
   ".SD",
   ".N",
-  "..analysis_type"
+  ".BY",
+  "..analysis_type",
+  "..territorial_level"
 ))

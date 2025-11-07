@@ -629,22 +629,30 @@ get_default_pfun <- function(territorial_level) {
 
 #' Read Italian Territorial Shapefile
 #'
-#' Internal helper function to read territorial shapefiles from extracted files
-#' or from the ISTAT zip archive. Supports all territorial levels.
+#' Internal helper function to read territorial shapefiles from cached downloads,
+#' extracted files, or from the ISTAT zip archive. Supports all territorial levels.
 #'
 #' @param territorial_level Character string. One of: "comuni", "province",
 #'   "regioni", "ripartizioni".
+#' @param date Date or character. Reference date for boundaries. If NULL (default),
+#'   uses most recent cached version. Format: "YYYY-MM-DD" or "YYYYMMDD".
 #' @param verbose Logical. Print progress messages.
 #'
 #' @return An sf object with territorial boundaries
 #'
 #' @details
-#' This function first looks for pre-extracted shapefiles in
-#' \code{data-raw/Limiti01012025_g/}. If not found, it will extract
-#' from the zip file to a temporary directory.
+#' This function searches for shapefiles in the following order:
+#' \enumerate{
+#'   \item Cached downloads from \code{download_istat_boundaries()}
+#'   \item Pre-extracted shapefiles in \code{data-raw/Limiti01012025_g/}
+#'   \item Extraction from the zip file to a temporary directory
+#' }
 #'
-#' For better performance, extract the zip file once using:
-#' \code{source("data-raw/extract_shapefiles.R")}
+#' For better performance:
+#' \itemize{
+#'   \item Use \code{download_istat_boundaries()} to cache shapefiles
+#'   \item Or run \code{source("data-raw/extract_shapefiles.R")} once
+#' }
 #'
 #' Shapefile patterns in zip:
 #' \itemize{
@@ -657,8 +665,58 @@ get_default_pfun <- function(territorial_level) {
 #' @keywords internal
 #' @noRd
 read_territorial_shapefile <- function(territorial_level = "comuni",
+                                        date = NULL,
                                         verbose = TRUE) {
-  # Find package root or use current directory
+
+  # 1. First, check cache location from download_istat_boundaries() -----
+  tryCatch({
+    # Load boundaries metadata to find cached files
+    # Use get_boundaries_cache_dir() from download_boundaries.R
+    cache_dir <- tools::R_user_dir("situas", which = "data")
+    boundaries_dir <- file.path(cache_dir, "boundaries")
+    metadata_path <- file.path(boundaries_dir, "metadata.rds")
+
+    if (file.exists(metadata_path)) {
+      metadata <- readRDS(metadata_path)
+
+      # Filter for this territorial level
+      level_metadata <- metadata[metadata$territorial_level == territorial_level, ]
+
+      if (nrow(level_metadata) > 0) {
+        # If date specified, try to find matching version
+        if (!is.null(date)) {
+          date_str <- format(as.Date(date), "%Y%m%d")
+          matching <- level_metadata[level_metadata$date == date_str, ]
+
+          if (nrow(matching) > 0) {
+            cached_file <- matching$file_path[1]
+          } else {
+            cached_file <- NULL
+          }
+        } else {
+          # Use most recent version
+          level_metadata <- level_metadata[order(level_metadata$date, decreasing = TRUE), ]
+          cached_file <- level_metadata$file_path[1]
+        }
+
+        # Check if cached file exists
+        if (!is.null(cached_file) && file.exists(cached_file)) {
+          if (verbose) {
+            message("  Reading shapefile from cache: ", basename(cached_file))
+            message("  Reference date: ", level_metadata$date[1])
+          }
+
+          shapefile_sf <- sf::st_read(cached_file, quiet = !verbose)
+          shapefile_sf <- ensure_wgs84_crs(shapefile_sf, verbose)
+          return(shapefile_sf)
+        }
+      }
+    }
+  }, error = function(e) {
+    # Silently continue to next method if cache check fails
+  })
+
+  # 2. Find package root or use current directory -----
   pkg_root <- tryCatch(
     {
       find_package_root()
@@ -687,7 +745,7 @@ read_territorial_shapefile <- function(territorial_level = "comuni",
     stop("Unknown territorial_level: ", territorial_level, call. = FALSE)
   )
 
-  # First, try to read from pre-extracted directory
+  # 3. Try to read from pre-extracted directory -----
   extracted_dir <- file.path(pkg_root, "data-raw", dir_pattern)
 
   if (dir.exists(extracted_dir)) {
@@ -714,10 +772,11 @@ read_territorial_shapefile <- function(territorial_level = "comuni",
     }
   }
 
-  # If not found in extracted directory, extract from zip
+  # 4. If not found in extracted directory, extract from zip -----
   if (verbose) {
     message("  Extracted files not found. Extracting from zip...")
-    message("  TIP: Run source('data-raw/extract_shapefiles.R') once for better performance")
+    message("  TIP: Run download_istat_boundaries() to cache shapefiles")
+    message("  Or: source('data-raw/extract_shapefiles.R') for local extraction")
   }
 
   # Path to zip file
@@ -725,9 +784,14 @@ read_territorial_shapefile <- function(territorial_level = "comuni",
 
   if (!file.exists(zip_path)) {
     stop(
-      "Shapefile not found at: ", zip_path,
-      "\nExpected: data-raw/Limiti01012025_g.zip",
-      "\nOr pre-extracted files at: ", extracted_dir,
+      "Shapefile not found!\n",
+      "Searched in:\n",
+      "  1. Cache: ", file.path(tools::R_user_dir("situas", which = "data"), "boundaries"), "\n",
+      "  2. Extracted: ", extracted_dir, "\n",
+      "  3. Zip archive: ", zip_path, "\n\n",
+      "To download boundaries automatically, run:\n",
+      "  download_istat_boundaries()\n\n",
+      "Or download manually from: https://www.istat.it/it/archivio/222527",
       call. = FALSE
     )
   }
