@@ -16,6 +16,7 @@ test_that("get_cache_dir() creates directory if it doesn't exist", {
 })
 
 test_that("save_to_cache() saves data correctly with timestamp", {
+  skip_if_not_installed("mockery")
   withr::local_tempdir()
 
   # Create test data
@@ -71,6 +72,7 @@ test_that("save_to_cache() validates inputs", {
 })
 
 test_that("save_to_cache() handles errors gracefully", {
+  skip_if_not_installed("mockery")
   # Create invalid cache directory path to trigger error
   temp_dir <- tempdir()
   invalid_dir <- file.path(temp_dir, "nonexistent", "deeply", "nested")
@@ -88,6 +90,7 @@ test_that("save_to_cache() handles errors gracefully", {
 })
 
 test_that("load_from_cache() retrieves saved data", {
+  skip_if_not_installed("mockery")
   withr::local_tempdir()
 
   # Create and save test data
@@ -114,6 +117,7 @@ test_that("load_from_cache() retrieves saved data", {
 })
 
 test_that("load_from_cache() returns NULL for non-existent cache", {
+  skip_if_not_installed("mockery")
   temp_cache <- tempdir()
   mockery::stub(load_from_cache, "get_cache_dir", temp_cache)
 
@@ -140,6 +144,7 @@ test_that("load_from_cache() validates inputs", {
 })
 
 test_that("load_from_cache() handles corrupted cache gracefully", {
+  skip_if_not_installed("mockery")
   withr::local_tempdir()
 
   temp_cache <- tempdir()
@@ -160,6 +165,7 @@ test_that("load_from_cache() handles corrupted cache gracefully", {
 })
 
 test_that("is_cache_valid() correctly identifies valid cache", {
+  skip_if_not_installed("mockery")
   withr::local_tempdir()
 
   # Create fresh cache
@@ -182,6 +188,7 @@ test_that("is_cache_valid() correctly identifies valid cache", {
 })
 
 test_that("is_cache_valid() correctly identifies invalid cache", {
+  skip_if_not_installed("mockery")
   withr::local_tempdir()
 
   temp_cache <- tempdir()
@@ -195,6 +202,7 @@ test_that("is_cache_valid() correctly identifies invalid cache", {
 })
 
 test_that("is_cache_valid() detects expired cache", {
+  skip_if_not_installed("mockery")
   withr::local_tempdir()
 
   # Create old cache
@@ -221,6 +229,7 @@ test_that("is_cache_valid() detects expired cache", {
 })
 
 test_that("is_cache_valid() returns FALSE for cache without timestamp", {
+  skip_if_not_installed("mockery")
   withr::local_tempdir()
 
   # Create cache without timestamp attribute
@@ -265,6 +274,7 @@ test_that("is_cache_valid() validates inputs", {
 })
 
 test_that("is_cache_valid() handles corrupted cache files", {
+  skip_if_not_installed("mockery")
   withr::local_tempdir()
 
   temp_cache <- tempdir()
