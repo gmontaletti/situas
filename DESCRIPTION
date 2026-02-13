@@ -16,7 +16,6 @@ Description: Provides functions to download and cache territorial codes and
     territorial codes in datasets.
 License: GPL-3
 Encoding: UTF-8
-LazyData: true
 Imports:
     data.table,
     httr,
@@ -32,6 +31,9 @@ Suggests:
     withr,
     rmapshaper,
     rvest,
-    polite
+    polite,
+    knitr,
+    rmarkdown
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3
+VignetteBuilder: knitr

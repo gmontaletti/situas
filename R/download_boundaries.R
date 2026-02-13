@@ -71,8 +71,12 @@ get_territorial_code <- function(level) {
 
   code <- codes[[level]]
   if (is.null(code)) {
-    stop("Invalid territorial level: ", level,
-         ". Valid options: ", paste(names(codes), collapse = ", "))
+    stop(
+      "Invalid territorial level: ",
+      level,
+      ". Valid options: ",
+      paste(names(codes), collapse = ", ")
+    )
   }
 
   return(code)
@@ -165,7 +169,9 @@ build_istat_url <- function(date) {
 
   # Note: This is a placeholder. Actual ISTAT URLs would need to be scraped
   # from https://www.istat.it/it/archivio/222527
-  warning("ISTAT direct download not yet implemented. Using OnData as primary source.")
+  warning(
+    "ISTAT direct download not yet implemented. Using OnData as primary source."
+  )
 
   return(NULL)
 }
@@ -184,7 +190,9 @@ download_boundary_file <- function(url, dest_file, verbose = TRUE) {
   # Download with progress bar
   response <- httr::GET(
     url,
-    httr::user_agent("situas R package (https://github.com/gmontaletti/situas)"),
+    httr::user_agent(
+      "situas R package (https://github.com/gmontaletti/situas)"
+    ),
     httr::progress(),
     httr::write_disk(dest_file, overwrite = TRUE)
   )
@@ -197,7 +205,10 @@ download_boundary_file <- function(url, dest_file, verbose = TRUE) {
   # Verify it's a valid zip file
   if (!is_valid_zip(dest_file)) {
     unlink(dest_file)
-    return(list(success = FALSE, error = "Downloaded file is not a valid ZIP archive"))
+    return(list(
+      success = FALSE,
+      error = "Downloaded file is not a valid ZIP archive"
+    ))
   }
 
   return(list(success = TRUE, file = dest_file))
@@ -208,19 +219,27 @@ download_boundary_file <- function(url, dest_file, verbose = TRUE) {
 #' @keywords internal
 #' @noRd
 is_valid_zip <- function(file) {
-  tryCatch({
-    zip_list <- utils::unzip(file, list = TRUE)
-    return(nrow(zip_list) > 0)
-  }, error = function(e) {
-    return(FALSE)
-  })
+  tryCatch(
+    {
+      zip_list <- utils::unzip(file, list = TRUE)
+      return(nrow(zip_list) > 0)
+    },
+    error = function(e) {
+      return(FALSE)
+    }
+  )
 }
 
 #' Extract shapefile from ZIP
 #'
 #' @keywords internal
 #' @noRd
-extract_boundary_shapefile <- function(zip_file, date, territorial_level, verbose = TRUE) {
+extract_boundary_shapefile <- function(
+  zip_file,
+  date,
+  territorial_level,
+  verbose = TRUE
+) {
   # Create extraction directory
   cache_dir <- get_boundaries_cache_dir()
   date_str <- format_boundary_date(date)
@@ -243,7 +262,12 @@ extract_boundary_shapefile <- function(zip_file, date, territorial_level, verbos
   # OnData naming: Com_gen_WGS84.shp (for comuni)
   # We need to find files that match the pattern
   shp_pattern <- paste0(code, ".*\\.shp$")
-  shp_files <- grep(shp_pattern, zip_contents$Name, value = TRUE, ignore.case = TRUE)
+  shp_files <- grep(
+    shp_pattern,
+    zip_contents$Name,
+    value = TRUE,
+    ignore.case = TRUE
+  )
 
   if (length(shp_files) == 0) {
     return(list(success = FALSE, error = "No shapefile found in ZIP archive"))
@@ -254,10 +278,20 @@ extract_boundary_shapefile <- function(zip_file, date, territorial_level, verbos
   base_name <- sub("\\.shp$", "", basename(shp_file), ignore.case = TRUE)
 
   # Find all related files
-  related_files <- grep(base_name, zip_contents$Name, value = TRUE, fixed = TRUE)
+  related_files <- grep(
+    base_name,
+    zip_contents$Name,
+    value = TRUE,
+    fixed = TRUE
+  )
 
   # Extract all related files
-  utils::unzip(zip_file, files = related_files, exdir = extract_dir, overwrite = TRUE)
+  utils::unzip(
+    zip_file,
+    files = related_files,
+    exdir = extract_dir,
+    overwrite = TRUE
+  )
 
   # Return path to main .shp file
   shp_path <- file.path(extract_dir, basename(shp_file))
@@ -335,12 +369,13 @@ extract_boundary_shapefile <- function(zip_file, date, territorial_level, verbos
 #' \code{\link{get_cached_boundaries_info}} to see cached boundaries
 #'
 #' @export
-download_istat_boundaries <- function(date = NULL,
-                                      territorial_levels = c("comuni", "province", "regioni", "ripartizioni"),
-                                      output_dir = NULL,
-                                      force_refresh = FALSE,
-                                      verbose = TRUE) {
-
+download_istat_boundaries <- function(
+  date = NULL,
+  territorial_levels = c("comuni", "province", "regioni", "ripartizioni"),
+  output_dir = NULL,
+  force_refresh = FALSE,
+  verbose = TRUE
+) {
   # 1. Validate inputs -----
   stopifnot(
     is.logical(force_refresh),
@@ -359,8 +394,12 @@ download_istat_boundaries <- function(date = NULL,
   valid_levels <- c("comuni", "province", "regioni", "ripartizioni")
   invalid_levels <- setdiff(territorial_levels, valid_levels)
   if (length(invalid_levels) > 0) {
-    stop("Invalid territorial levels: ", paste(invalid_levels, collapse = ", "),
-         "\nValid options: ", paste(valid_levels, collapse = ", "))
+    stop(
+      "Invalid territorial levels: ",
+      paste(invalid_levels, collapse = ", "),
+      "\nValid options: ",
+      paste(valid_levels, collapse = ", ")
+    )
   }
 
   # Use default cache directory if not specified
@@ -395,13 +434,16 @@ download_istat_boundaries <- function(date = NULL,
         if (verbose) {
           message("Using cached file: ", cached_file)
         }
-        results <- data.table::rbindlist(list(results, data.table::data.table(
-          territorial_level = level,
-          status = "cached",
-          source = cached$source[1],
-          file_path = cached_file,
-          error = NA_character_
-        )))
+        results <- data.table::rbindlist(list(
+          results,
+          data.table::data.table(
+            territorial_level = level,
+            status = "cached",
+            source = cached$source[1],
+            file_path = cached_file,
+            error = NA_character_
+          )
+        ))
         next
       }
     }
@@ -414,11 +456,16 @@ download_istat_boundaries <- function(date = NULL,
 
     if (download_result$success) {
       # Extract shapefile
-      extract_result <- extract_boundary_shapefile(temp_zip, date, level, verbose)
+      extract_result <- extract_boundary_shapefile(
+        temp_zip,
+        date,
+        level,
+        verbose
+      )
 
       if (extract_result$success) {
         # Update metadata
-        file_size <- file.info(extract_result$shapefile)$size / 1024^2  # MB
+        file_size <- file.info(extract_result$shapefile)$size / 1024^2 # MB
 
         new_entry <- data.table::data.table(
           date = date_str,
@@ -434,38 +481,47 @@ download_istat_boundaries <- function(date = NULL,
         metadata <- data.table::rbindlist(list(metadata, new_entry))
         save_boundaries_metadata(metadata)
 
-        results <- data.table::rbindlist(list(results, data.table::data.table(
-          territorial_level = level,
-          status = "success",
-          source = "OnData",
-          file_path = extract_result$shapefile,
-          error = NA_character_
-        )))
+        results <- data.table::rbindlist(list(
+          results,
+          data.table::data.table(
+            territorial_level = level,
+            status = "success",
+            source = "OnData",
+            file_path = extract_result$shapefile,
+            error = NA_character_
+          )
+        ))
 
         if (verbose) {
           message("Successfully downloaded and extracted: ", level)
         }
       } else {
-        results <- data.table::rbindlist(list(results, data.table::data.table(
-          territorial_level = level,
-          status = "failed",
-          source = "OnData",
-          file_path = NA_character_,
-          error = extract_result$error
-        )))
+        results <- data.table::rbindlist(list(
+          results,
+          data.table::data.table(
+            territorial_level = level,
+            status = "failed",
+            source = "OnData",
+            file_path = NA_character_,
+            error = extract_result$error
+          )
+        ))
       }
 
       # Clean up temp file
       unlink(temp_zip)
     } else {
       # Try ISTAT fallback (not yet implemented)
-      results <- data.table::rbindlist(list(results, data.table::data.table(
-        territorial_level = level,
-        status = "failed",
-        source = "OnData",
-        file_path = NA_character_,
-        error = download_result$error
-      )))
+      results <- data.table::rbindlist(list(
+        results,
+        data.table::data.table(
+          territorial_level = level,
+          status = "failed",
+          source = "OnData",
+          file_path = NA_character_,
+          error = download_result$error
+        )
+      ))
 
       if (verbose) {
         warning("Failed to download ", level, ": ", download_result$error)
@@ -513,10 +569,11 @@ download_istat_boundaries <- function(date = NULL,
 #' @seealso \code{\link{download_istat_boundaries}}
 #'
 #' @export
-list_istat_boundary_versions <- function(since_year = 2020,
-                                        use_cache = TRUE,
-                                        verbose = TRUE) {
-
+list_istat_boundary_versions <- function(
+  since_year = 2020,
+  use_cache = TRUE,
+  verbose = TRUE
+) {
   stopifnot(
     is.numeric(since_year),
     is.logical(use_cache),
@@ -524,15 +581,23 @@ list_istat_boundary_versions <- function(since_year = 2020,
   )
 
   # Check cache
-  cache_dir <- get_cache_dir()  # Use existing cache system
+  cache_dir <- get_cache_dir() # Use existing cache system
   cache_key <- paste0("boundary_versions_", since_year)
   cache_file <- file.path(cache_dir, paste0(cache_key, ".rds"))
 
   if (use_cache && file.exists(cache_file)) {
-    cache_age <- difftime(Sys.time(), file.info(cache_file)$mtime, units = "hours")
+    cache_age <- difftime(
+      Sys.time(),
+      file.info(cache_file)$mtime,
+      units = "hours"
+    )
     if (cache_age < 24) {
       if (verbose) {
-        message("Using cached version list (age: ", round(cache_age, 1), " hours)")
+        message(
+          "Using cached version list (age: ",
+          round(cache_age, 1),
+          " hours)"
+        )
       }
       return(readRDS(cache_file))
     }
@@ -580,10 +645,9 @@ list_istat_boundary_versions <- function(since_year = 2020,
 #'
 #' @export
 check_boundary_updates <- function(verbose = TRUE) {
-
   # Get available versions
   available <- list_istat_boundary_versions(verbose = FALSE)
-  latest_date <- available$date[1]  # Most recent
+  latest_date <- available$date[1] # Most recent
 
   # Get cached boundaries
   metadata <- load_boundaries_metadata()
@@ -596,33 +660,43 @@ check_boundary_updates <- function(verbose = TRUE) {
     territorial_level = all_levels
   )
 
-  comparison[, current_date := {
-    cached <- metadata[territorial_level == .BY[[1]]]
-    if (nrow(cached) > 0) {
-      max(cached$date)
-    } else {
-      NA_character_
-    }
-  }, by = territorial_level]
+  comparison[,
+    current_date := {
+      cached <- metadata[territorial_level == .BY[[1]]]
+      if (nrow(cached) > 0) {
+        max(cached$date)
+      } else {
+        NA_character_
+      }
+    },
+    by = territorial_level
+  ]
 
   comparison[, latest_date := latest_date]
-  comparison[, update_available := is.na(current_date) | current_date < latest_date]
+  comparison[,
+    update_available := is.na(current_date) | current_date < latest_date
+  ]
 
-  comparison[, current_source := {
-    cached <- metadata[territorial_level == .BY[[1]]]
-    if (nrow(cached) > 0) {
-      cached$source[which.max(cached$date)]
-    } else {
-      NA_character_
-    }
-  }, by = territorial_level]
+  comparison[,
+    current_source := {
+      cached <- metadata[territorial_level == .BY[[1]]]
+      if (nrow(cached) > 0) {
+        cached$source[which.max(cached$date)]
+      } else {
+        NA_character_
+      }
+    },
+    by = territorial_level
+  ]
 
   if (verbose) {
     message("Boundary Update Status:")
     print(comparison)
 
     if (any(comparison$update_available)) {
-      message("\nUpdates are available! Run download_istat_boundaries() to update.")
+      message(
+        "\nUpdates are available! Run download_istat_boundaries() to update."
+      )
     } else {
       message("\nAll boundaries are up to date.")
     }
@@ -664,8 +738,10 @@ check_boundary_updates <- function(verbose = TRUE) {
 #' \code{\link{clean_boundary_cache}}
 #'
 #' @export
-get_cached_boundaries_info <- function(territorial_level = "all", verbose = TRUE) {
-
+get_cached_boundaries_info <- function(
+  territorial_level = "all",
+  verbose = TRUE
+) {
   metadata <- load_boundaries_metadata()
 
   if (nrow(metadata) == 0) {
@@ -678,7 +754,8 @@ get_cached_boundaries_info <- function(territorial_level = "all", verbose = TRUE
 
   # Filter by territorial level if specified
   if (territorial_level != "all") {
-    metadata <- metadata[territorial_level == ..territorial_level]
+    level_filter <- territorial_level
+    metadata <- metadata[territorial_level == level_filter]
   }
 
   # Check if files still exist
@@ -742,17 +819,24 @@ get_cached_boundaries_info <- function(territorial_level = "all", verbose = TRUE
 #' @seealso \code{\link{get_cached_boundaries_info}}
 #'
 #' @export
-clean_boundary_cache <- function(keep_latest_n = 1,
-                                 older_than_days = NULL,
-                                 territorial_level = "all",
-                                 dry_run = FALSE,
-                                 verbose = TRUE) {
-
+clean_boundary_cache <- function(
+  keep_latest_n = 1,
+  older_than_days = NULL,
+  territorial_level = "all",
+  dry_run = FALSE,
+  verbose = TRUE
+) {
   stopifnot(
-    is.null(keep_latest_n) || (is.numeric(keep_latest_n) && keep_latest_n >= 0),
-    is.null(older_than_days) || (is.numeric(older_than_days) && older_than_days >= 0),
-    is.logical(dry_run),
-    is.logical(verbose)
+    "keep_latest_n must be NULL or a non-negative number" = is.null(
+      keep_latest_n
+    ) ||
+      (is.numeric(keep_latest_n) && keep_latest_n >= 0),
+    "older_than_days must be NULL or a non-negative number" = is.null(
+      older_than_days
+    ) ||
+      (is.numeric(older_than_days) && older_than_days >= 0),
+    "dry_run must be logical" = is.logical(dry_run),
+    "verbose must be logical" = is.logical(verbose)
   )
 
   metadata <- load_boundaries_metadata()
@@ -770,27 +854,32 @@ clean_boundary_cache <- function(keep_latest_n = 1,
     metadata <- metadata[territorial_level == level_filter]
   }
 
-  # Determine which files to remove
-  to_remove <- metadata[FALSE]  # Empty data.table with same structure
-
   # Strategy 1: Keep only N most recent versions per level
   if (!is.null(keep_latest_n)) {
     data.table::setorder(metadata, territorial_level, -date)
-
     metadata[, rank := seq_len(.N), by = territorial_level]
     to_remove_by_rank <- metadata[rank > keep_latest_n]
-    to_remove <- data.table::rbindlist(list(to_remove, to_remove_by_rank))
+  } else {
+    to_remove_by_rank <- metadata[FALSE]
   }
 
   # Strategy 2: Remove versions older than N days
   if (!is.null(older_than_days)) {
     cutoff_date <- Sys.time() - (older_than_days * 24 * 60 * 60)
     to_remove_by_age <- metadata[download_timestamp < cutoff_date]
-    to_remove <- data.table::rbindlist(list(to_remove, to_remove_by_age))
+  } else {
+    to_remove_by_age <- metadata[FALSE]
   }
 
-  # Remove duplicates
+  # Combine and remove duplicates
+  to_remove <- data.table::rbindlist(
+    list(to_remove_by_rank, to_remove_by_age),
+    fill = TRUE
+  )
   to_remove <- unique(to_remove)
+  if ("rank" %in% names(to_remove)) {
+    to_remove[, rank := NULL]
+  }
 
   if (nrow(to_remove) == 0) {
     if (verbose) {
@@ -801,7 +890,12 @@ clean_boundary_cache <- function(keep_latest_n = 1,
 
   # Display what will be removed
   if (verbose || dry_run) {
-    message(ifelse(dry_run, "Would remove", "Removing"), " ", nrow(to_remove), " file(s):")
+    message(
+      ifelse(dry_run, "Would remove", "Removing"),
+      " ",
+      nrow(to_remove),
+      " file(s):"
+    )
     print(to_remove[, .(territorial_level, date, file_size_mb, file_path)])
 
     total_size <- sum(to_remove$file_size_mb, na.rm = TRUE)
@@ -836,6 +930,9 @@ clean_boundary_cache <- function(keep_latest_n = 1,
 
   # Update metadata
   metadata <- metadata[!file_path %in% removed_files]
+  if ("rank" %in% names(metadata)) {
+    metadata[, rank := NULL]
+  }
   save_boundaries_metadata(metadata)
 
   if (verbose) {

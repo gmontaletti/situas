@@ -1,14 +1,20 @@
-# Download Classification Standards
-
-This document describes the `download_classification_standards()` function and related functionality for downloading Italian Labor Ministry classification standard files.
+---
+title: "Download Classification Standards"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Download Classification Standards}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
 
 ## Overview
 
-The Italian Ministry of Labor and Social Policies maintains official classification standards used in administrative data systems (URP - Unità Raccolta Permessi). These classifications are published as Excel files at:
+The Italian Ministry of Labor and Social Policies maintains official classification standards used in administrative data systems (URP - Unita Raccolta Permessi). These classifications are published as Excel files at:
 
-https://urponline.lavoro.gov.it/s/standard-tecnici/classificazioni-standard
+<https://urponline.lavoro.gov.it/s/standard-tecnici/classificazioni-standard>
 
 The `download_classification_standards()` function automates:
+
 - Scraping the web page to find available files
 - Parsing version numbers from filenames
 - Downloading only the latest versions (or all versions if requested)
@@ -18,15 +24,15 @@ The `download_classification_standards()` function automates:
 
 The function requires two additional packages for web scraping:
 
-```r
+```{r, eval = FALSE}
 install.packages(c("rvest", "polite"))
 ```
 
-These are listed as "Suggests" dependencies, so they're optional if you don't need this functionality.
+These are listed as "Suggests" dependencies, so they are optional if you do not need this functionality.
 
 ## Basic Usage
 
-```r
+```{r, eval = FALSE}
 library(situas)
 
 # Download latest versions to default directory
@@ -34,6 +40,7 @@ files <- download_classification_standards()
 ```
 
 This will:
+
 1. Scrape the Labor Ministry website
 2. Find all Excel classification files
 3. Identify the latest version of each type
@@ -46,9 +53,11 @@ This will:
 The function recognizes three main classification types:
 
 ### 1. classificazioni_standard
+
 Main classification standards file (e.g., `Rev.090-ST-Classificazioni-Standard.xlsx`).
 
 Contains multiple sheets with various classification codes:
+
 - Professional qualifications (CP)
 - Economic activities (ATECO)
 - Job titles
@@ -56,14 +65,16 @@ Contains multiple sheets with various classification codes:
 - And more
 
 ### 2. allegato
+
 Annex files with additional information or mappings (e.g., `AllegatoA_AnalisiMigrazioneCp2011-Cp2021.xlsx`).
 
 ### 3. migrazione
+
 Migration analysis files showing changes between classification versions.
 
 ## Function Parameters
 
-```r
+```{r, eval = FALSE}
 download_classification_standards(
   output_dir = "data-raw/classifications",  # Where to save files
   url = "https://urponline.lavoro.gov.it/s/standard-tecnici/classificazioni-standard?language=it",
@@ -78,6 +89,7 @@ download_classification_standards(
 ## Return Value
 
 Returns a data.table (invisibly) with:
+
 - `filename`: Downloaded filename
 - `url`: Source URL
 - `link_text`: Original link text from webpage
@@ -91,7 +103,7 @@ Returns a data.table (invisibly) with:
 
 ### Download to Custom Directory
 
-```r
+```{r, eval = FALSE}
 files <- download_classification_standards(
   output_dir = "my_data/classifications"
 )
@@ -99,7 +111,7 @@ files <- download_classification_standards(
 
 ### Download Specific Types
 
-```r
+```{r, eval = FALSE}
 # Only main classification standards
 files <- download_classification_standards(
   classification_types = "classificazioni_standard"
@@ -115,7 +127,7 @@ files <- download_classification_standards(
 
 By default, only the latest version of each type is downloaded. To get all versions:
 
-```r
+```{r, eval = FALSE}
 files <- download_classification_standards(
   download_all = TRUE
 )
@@ -123,7 +135,7 @@ files <- download_classification_standards(
 
 ### Force Re-download
 
-```r
+```{r, eval = FALSE}
 # Update files even if they already exist
 files <- download_classification_standards(
   force_refresh = TRUE
@@ -132,7 +144,7 @@ files <- download_classification_standards(
 
 ### Silent Mode
 
-```r
+```{r, eval = FALSE}
 files <- download_classification_standards(
   verbose = FALSE
 )
@@ -142,7 +154,7 @@ files <- download_classification_standards(
 
 After downloading, a metadata file is saved containing:
 
-```r
+```{r, eval = FALSE}
 metadata <- readRDS("data-raw/classifications/download_metadata.rds")
 
 # Structure:
@@ -154,6 +166,7 @@ metadata <- readRDS("data-raw/classifications/download_metadata.rds")
 ```
 
 This metadata can be used to:
+
 - Track when files were last updated
 - Check for new versions
 - Reproduce the download environment
@@ -175,30 +188,34 @@ When `download_all = FALSE`, the function keeps only the file with the highest v
 The function will error if:
 
 1. **No files found**: Page structure changed or requires authentication
-   ```r
-   # Error: No Excel files found on page.
-   # Page may require JavaScript, authentication, or has changed structure.
-   ```
+
+```{r, eval = FALSE}
+# Error: No Excel files found on page.
+# Page may require JavaScript, authentication, or has changed structure.
+```
 
 2. **Network error**: Connection failed
-   ```r
-   # Error: Failed to connect to URL: ...
-   ```
+
+```{r, eval = FALSE}
+# Error: Failed to connect to URL: ...
+```
 
 3. **Download failed**: Individual file download error
-   ```r
-   # Error: Failed to download <filename>
-   ```
+
+```{r, eval = FALSE}
+# Error: Failed to download <filename>
+```
 
 4. **Missing packages**: Required packages not installed
-   ```r
-   # Error: Package 'rvest' is required for web scraping.
-   # Install it with: install.packages('rvest')
-   ```
+
+```{r, eval = FALSE}
+# Error: Package 'rvest' is required for web scraping.
+# Install it with: install.packages('rvest')
+```
 
 ### Handling Errors
 
-```r
+```{r, eval = FALSE}
 result <- tryCatch(
   {
     download_classification_standards()
@@ -216,7 +233,7 @@ result <- tryCatch(
 
 After downloading, you can read the Excel files with standard R packages:
 
-```r
+```{r, eval = FALSE}
 library(openxlsx)
 
 # Get latest classification standards file
@@ -243,7 +260,7 @@ names(all_sheets) <- sheet_names
 
 ## Typical Workflow
 
-```r
+```{r, eval = FALSE}
 library(situas)
 library(openxlsx)
 library(data.table)
@@ -278,24 +295,28 @@ print(names(cp2021))
 ### Website Changes
 
 The Labor Ministry website is a Salesforce Community portal that may:
+
 - Change HTML structure
 - Require JavaScript rendering
 - Update file naming conventions
 - Move to a different URL
 
 If scraping fails, you can:
+
 1. Download files manually
 2. Set `use_js_scraping = TRUE` (when implemented)
-3. File an issue at: https://github.com/gmontaletti/situas/issues
+3. File an issue at: <https://github.com/gmontaletti/situas/issues>
 
 ### JavaScript Scraping
 
 JavaScript-enabled scraping is planned but not yet implemented. It will require:
+
 - RSelenium (Selenium WebDriver)
 - Or chromote (Chrome DevTools Protocol)
 
 To enable when available:
-```r
+
+```{r, eval = FALSE}
 files <- download_classification_standards(
   use_js_scraping = TRUE
 )
@@ -306,18 +327,20 @@ files <- download_classification_standards(
 The implementation uses three internal helper functions:
 
 ### parse_classification_version()
+
 Extracts version number and type from filename.
 
-```r
+```{r, eval = FALSE}
 # Internal use only (not exported)
 situas:::parse_classification_version("Rev.090-ST-Classificazioni-Standard.xlsx")
 # Returns: list(version = 90, type = "classificazioni_standard")
 ```
 
 ### scrape_classification_links()
+
 Scrapes the web page for Excel file links.
 
-```r
+```{r, eval = FALSE}
 # Internal use only
 situas:::scrape_classification_links(
   url = "https://urponline.lavoro.gov.it/...",
@@ -327,9 +350,10 @@ situas:::scrape_classification_links(
 ```
 
 ### download_classification_file()
+
 Downloads a single file with error handling.
 
-```r
+```{r, eval = FALSE}
 # Internal use only
 situas:::download_classification_file(
   url = "...",
@@ -345,12 +369,13 @@ situas:::download_classification_file(
 
 Comprehensive tests are included in `tests/testthat/test-download_classifications.R`:
 
-```r
+```{r, eval = FALSE}
 # Run tests
 devtools::test_file("tests/testthat/test-download_classifications.R")
 ```
 
 Tests cover:
+
 - Version parsing from various filename formats
 - Link scraping with mocked web responses
 - File download logic
@@ -361,15 +386,5 @@ Tests cover:
 
 ## See Also
 
-- SITUAS API documentation: [CLAUDE.md](.claude/CLAUDE.md)
 - Package documentation: `?download_classification_standards`
-- Example script: [examples/download_classifications_example.R](examples/download_classifications_example.R)
-- Official source: https://urponline.lavoro.gov.it/s/standard-tecnici/classificazioni-standard
-
-## Author
-
-Giampaolo Montaletti (giampaolo.montaletti@gmail.com)
-
-ORCID: https://orcid.org/0009-0002-5327-1122
-
-GitHub: https://github.com/gmontaletti
+- Official source: <https://urponline.lavoro.gov.it/s/standard-tecnici/classificazioni-standard>

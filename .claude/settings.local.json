@@ -22,7 +22,19 @@
       "Bash(bash:*)",
       "WebFetch(domain:urponline.lavoro.gov.it)",
       "WebFetch(domain:dataveld.com)",
-      "Bash(R -e:*)"
+      "Bash(R -e:*)",
+      "Skill(r-package-maintenance)",
+      "Bash(R --quiet --no-save -e:*)",
+      "Bash(./run_pipeline.sh:*)",
+      "Bash(open:*)",
+      "Bash(find:*)",
+      "Bash(R --vanilla --slave -e:*)",
+      "Bash(file:*)",
+      "Bash(head:*)",
+      "Bash(du:*)",
+      "Bash(ls:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

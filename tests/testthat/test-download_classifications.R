@@ -1,5 +1,7 @@
 test_that("parse_classification_version extracts version from standard filename", {
-  result <- situas:::parse_classification_version("Rev.090-ST-Classificazioni-Standard.xlsx")
+  result <- situas:::parse_classification_version(
+    "Rev.090-ST-Classificazioni-Standard.xlsx"
+  )
 
   expect_type(result, "list")
   expect_equal(result$version, 90L)
@@ -7,14 +9,18 @@ test_that("parse_classification_version extracts version from standard filename"
 })
 
 test_that("parse_classification_version handles single-digit version", {
-  result <- situas:::parse_classification_version("Rev.005-ST-Classificazioni-Standard-1.xlsx")
+  result <- situas:::parse_classification_version(
+    "Rev.005-ST-Classificazioni-Standard-1.xlsx"
+  )
 
   expect_equal(result$version, 5L)
   expect_equal(result$type, "classificazioni_standard")
 })
 
 test_that("parse_classification_version handles allegato files", {
-  result <- situas:::parse_classification_version("AllegatoA_AnalisiMigrazioneCp2011-Cp2021.xlsx")
+  result <- situas:::parse_classification_version(
+    "AllegatoA_AnalisiMigrazioneCp2011-Cp2021.xlsx"
+  )
 
   expect_true(is.na(result$version))
   expect_equal(result$type, "allegato")
@@ -28,19 +34,18 @@ test_that("parse_classification_version handles files without version", {
 })
 
 test_that("parse_classification_version handles migrazione files", {
-  result <- situas:::parse_classification_version("Rev.001-Migrazione-Codici.xlsx")
+  result <- situas:::parse_classification_version(
+    "Rev.001-Migrazione-Codici.xlsx"
+  )
 
   expect_equal(result$version, 1L)
   expect_equal(result$type, "migrazione")
 })
 
 test_that("scrape_classification_links requires rvest", {
-  skip_if_not_installed("mockery")
-
-  mockery::stub(
-    situas:::scrape_classification_links,
-    "requireNamespace",
-    FALSE
+  skip_if(
+    requireNamespace("rvest", quietly = TRUE),
+    "Test requires rvest to NOT be installed"
   )
 
   expect_error(
@@ -124,27 +129,21 @@ test_that("download_classification_file skips existing files", {
 })
 
 test_that("download_classification_file handles relative URLs", {
-  skip_if_not_installed("mockery")
-
   temp_dir <- tempdir()
-
-  # Mock download.file to capture the URL
   captured_url <- NULL
-  mock_download <- function(url, destfile, ...) {
-    captured_url <<- url
-    # Create a dummy file
-    writeLines("test", destfile)
-  }
 
-  mockery::stub(
-    situas:::download_classification_file,
-    "download.file",
-    mock_download
+  local_mocked_bindings(
+    download.file = function(url, destfile, ...) {
+      captured_url <<- url
+      writeLines("test", destfile)
+      return(invisible(0L))
+    },
+    .package = "situas"
   )
 
   result <- situas:::download_classification_file(
     url = "/sfc/servlet/example.xlsx",
-    filename = "test.xlsx",
+    filename = "test_relative_url.xlsx",
     output_dir = temp_dir,
     verbose = FALSE
   )

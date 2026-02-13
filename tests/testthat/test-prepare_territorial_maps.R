@@ -52,7 +52,7 @@ test_that("read_territorial_shapefile reads comuni shapefile correctly", {
   comuni_sf <- read_territorial_shapefile("comuni", verbose = FALSE)
 
   expect_s3_class(comuni_sf, "sf")
-  expect_true(nrow(comuni_sf) > 7000)  # Should have ~7900 municipalities
+  expect_true(nrow(comuni_sf) > 7000) # Should have ~7900 municipalities
   expect_true("PRO_COM" %in% names(comuni_sf))
   expect_equal(sf::st_crs(comuni_sf)$epsg, 4326)
 
@@ -74,7 +74,7 @@ test_that("read_territorial_shapefile reads province shapefile correctly", {
   province_sf <- read_territorial_shapefile("province", verbose = FALSE)
 
   expect_s3_class(province_sf, "sf")
-  expect_true(nrow(province_sf) > 100)  # Should have ~107 provinces
+  expect_true(nrow(province_sf) > 100) # Should have ~107 provinces
   expect_true("COD_UTS" %in% names(province_sf))
   expect_equal(sf::st_crs(province_sf)$epsg, 4326)
 
@@ -96,7 +96,7 @@ test_that("read_territorial_shapefile reads regioni shapefile correctly", {
   regioni_sf <- read_territorial_shapefile("regioni", verbose = FALSE)
 
   expect_s3_class(regioni_sf, "sf")
-  expect_equal(nrow(regioni_sf), 20)  # Should have exactly 20 regions
+  expect_equal(nrow(regioni_sf), 20) # Should have exactly 20 regions
   expect_true("COD_REG" %in% names(regioni_sf))
   expect_equal(sf::st_crs(regioni_sf)$epsg, 4326)
 
@@ -118,7 +118,7 @@ test_that("read_territorial_shapefile reads ripartizioni shapefile correctly", {
   ripartizioni_sf <- read_territorial_shapefile("ripartizioni", verbose = FALSE)
 
   expect_s3_class(ripartizioni_sf, "sf")
-  expect_equal(nrow(ripartizioni_sf), 5)  # Should have exactly 5 ripartizioni
+  expect_equal(nrow(ripartizioni_sf), 5) # Should have exactly 5 ripartizioni
   expect_true("COD_RIP" %in% names(ripartizioni_sf))
   expect_equal(sf::st_crs(ripartizioni_sf)$epsg, 4326)
 
@@ -222,20 +222,18 @@ test_that("prepare_territorial_maps validates simplify parameter", {
 
   expect_error(
     prepare_territorial_maps(simplify = 1),
-    "simplify must be logical"
+    "simplify must be"
   )
 
   expect_error(
     prepare_territorial_maps(simplify = c(TRUE, FALSE)),
-    "simplify must be logical"
+    "simplify must be"
   )
 
-  # NA is logical but invalid - it gets caught later in execution, not validation
-  # The validation checks is.logical() which returns TRUE for NA, and length == 1
-  # The actual error happens when using NA in if() statement
+  # NA is logical but invalid - caught by named stopifnot validation
   expect_error(
     prepare_territorial_maps(simplify = NA),
-    "missing value where TRUE/FALSE needed"
+    "simplify must be"
   )
 })
 
@@ -307,28 +305,40 @@ test_that("prepare_territorial_maps validates situas_data parameter", {
   # Test situas_data without required join field for comuni (default)
   bad_data_comuni <- data.frame(x = 1:10, y = 11:20)
   expect_error(
-    prepare_territorial_maps(situas_data = bad_data_comuni, territorial_level = "comuni"),
+    prepare_territorial_maps(
+      situas_data = bad_data_comuni,
+      territorial_level = "comuni"
+    ),
     "situas_data must contain a 'PRO_COM' column"
   )
 
   # Test situas_data without required join field for province
   bad_data_province <- data.frame(x = 1:10, y = 11:20)
   expect_error(
-    prepare_territorial_maps(situas_data = bad_data_province, territorial_level = "province"),
+    prepare_territorial_maps(
+      situas_data = bad_data_province,
+      territorial_level = "province"
+    ),
     "situas_data must contain a 'COD_UTS' column"
   )
 
   # Test situas_data without required join field for regioni
   bad_data_regioni <- data.frame(x = 1:10, y = 11:20)
   expect_error(
-    prepare_territorial_maps(situas_data = bad_data_regioni, territorial_level = "regioni"),
+    prepare_territorial_maps(
+      situas_data = bad_data_regioni,
+      territorial_level = "regioni"
+    ),
     "situas_data must contain a 'COD_REG' column"
   )
 
   # Test situas_data without required join field for ripartizioni
   bad_data_ripartizioni <- data.frame(x = 1:10, y = 11:20)
   expect_error(
-    prepare_territorial_maps(situas_data = bad_data_ripartizioni, territorial_level = "ripartizioni"),
+    prepare_territorial_maps(
+      situas_data = bad_data_ripartizioni,
+      territorial_level = "ripartizioni"
+    ),
     "situas_data must contain a 'COD_RIP' column"
   )
 })
@@ -410,7 +420,10 @@ test_that("prepare_territorial_maps creates output files for comuni", {
 
   # Check returned file list
   expect_type(files, "list")
-  expect_true(all(c("rds", "geojson", "topojson", "shapefile_rds", "situas_rds") %in% names(files)))
+  expect_true(all(
+    c("rds", "geojson", "topojson", "shapefile_rds", "situas_rds") %in%
+      names(files)
+  ))
 
   # Check files exist
   expect_true(file.exists(files$rds))
@@ -453,7 +466,10 @@ test_that("prepare_territorial_maps creates output files for province", {
 
   # Check returned file list
   expect_type(files, "list")
-  expect_true(all(c("rds", "geojson", "topojson", "shapefile_rds", "situas_rds") %in% names(files)))
+  expect_true(all(
+    c("rds", "geojson", "topojson", "shapefile_rds", "situas_rds") %in%
+      names(files)
+  ))
 
   # Check files exist
   expect_true(file.exists(files$rds))
@@ -493,7 +509,10 @@ test_that("prepare_territorial_maps creates output files for regioni", {
 
   # Check returned file list
   expect_type(files, "list")
-  expect_true(all(c("rds", "geojson", "topojson", "shapefile_rds", "situas_rds") %in% names(files)))
+  expect_true(all(
+    c("rds", "geojson", "topojson", "shapefile_rds", "situas_rds") %in%
+      names(files)
+  ))
 
   # Check files exist
   expect_true(file.exists(files$rds))
@@ -533,7 +552,10 @@ test_that("prepare_territorial_maps creates output files for ripartizioni", {
 
   # Check returned file list
   expect_type(files, "list")
-  expect_true(all(c("rds", "geojson", "topojson", "shapefile_rds", "situas_rds") %in% names(files)))
+  expect_true(all(
+    c("rds", "geojson", "topojson", "shapefile_rds", "situas_rds") %in%
+      names(files)
+  ))
 
   # Check files exist
   expect_true(file.exists(files$rds))
@@ -563,7 +585,11 @@ test_that("prepare_territorial_maps works with pre-downloaded situas_data", {
   temp_output <- tempfile()
 
   # Download data first
-  regioni_data <- get_situas_tables(pfun = 68, date = "2025-01-01", verbose = FALSE)
+  regioni_data <- get_situas_tables(
+    pfun = 68,
+    date = "2025-01-01",
+    verbose = FALSE
+  )
 
   # Pass pre-downloaded data
   files <- prepare_territorial_maps(
@@ -611,7 +637,7 @@ test_that("prepare_territorial_maps uses default pfun when not provided", {
   # Check that it worked with default pfun = 68
   expect_type(files, "list")
   expect_true(file.exists(files$rds))
-  expect_true(grepl("_68_", files$rds))  # Should have pfun 68 in filename
+  expect_true(grepl("_68_", files$rds)) # Should have pfun 68 in filename
 
   # Cleanup
   unlink(temp_output, recursive = TRUE)
@@ -637,11 +663,11 @@ test_that("prepare_territorial_maps respects custom pfun parameter", {
     output_dir = temp_output,
     verbose = FALSE,
     simplify = TRUE,
-    keep_attributes = NULL  # Keep all attributes
+    keep_attributes = NULL # Keep all attributes
   )
 
   # Check that custom pfun was used
-  expect_true(grepl("_73_", files$rds))  # Should have pfun 73 in filename
+  expect_true(grepl("_73_", files$rds)) # Should have pfun 73 in filename
 
   # Cleanup
   unlink(temp_output, recursive = TRUE)
@@ -700,7 +726,7 @@ test_that("prepare_territorial_maps keeps all attributes when keep_attributes is
     output_dir = temp_output,
     verbose = FALSE,
     simplify = TRUE,
-    keep_attributes = NULL  # Keep all
+    keep_attributes = NULL # Keep all
   )
 
   # Check that multiple attributes are kept

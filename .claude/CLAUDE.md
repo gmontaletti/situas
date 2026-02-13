@@ -51,12 +51,37 @@ devtools::install()
 ## Development Guidelines
 
 1. **Use agents for all development tasks** - planning, coding, testing, documentation
-2. **Never modify the original `moneca()` function** if it exists
 3. Follow CRAN standards for package structure
 4. Write tests using testthat for all new functions
 5. Use data.table syntax for data manipulation (not dplyr)
 6. Implement caching mechanism for offline API access
 7. Use vectorized operations for performance
+
+## Git Operations section 
+
+When asked to commit and push, do it quickly and directly. Do not over-analyze repo state, explore untracked files extensively, or ask unnecessary clarifying questions. If no git repo exists, create one and set up the remote without asking.
+
+
+## Debugging & Bug Fixes 
+
+When investigating bugs or inconsistencies, always deeply investigate the root cause FIRST. Do not apply superficial quick fixes. Trace the issue through the full code path before proposing changes.
+
+
+## General Behavior 
+
+Do NOT enter plan-only mode unless explicitly asked to plan. When asked to fix something, apply the fix directly. When asked to implement something, write the code — don't just write a plan document.
+
+## Tech Stack & Conventions 
+
+This project uses R extensively. Key tools: targets (pipeline), testthat (testing), pkgdown (docs), flexdashboard/Shiny (dashboards), tsibble/fable/fabletools (forecasting). 
+Always run `devtools::test()` after modifying R package code. 
+When working with PostgreSQL, always check the correct schema (usually 'public') before running queries.
+
+## R-Specific Gotchas 
+
+When running R scripts or targets pipelines, watch for silent error swallowing via tryCatch. If a script completes with no output or empty results, immediately check error handling before re-running.
+
+
 
 ## Package Structure (Standard R Package)
 

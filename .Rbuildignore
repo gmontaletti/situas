@@ -8,3 +8,6 @@
 ^data-raw/ProvCM01012025_g$
 ^data-raw/Reg01012025_g$
 ^data-raw/RipGeo01012025_g$
+^\.Rprofile$
+^\.Rhistory$
+^\.DS_Store$

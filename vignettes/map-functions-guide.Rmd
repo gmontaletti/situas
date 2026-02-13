@@ -1,12 +1,19 @@
-# Geographic Mapping Functions - User Guide
+---
+title: "Geographic Mapping Functions Guide"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Geographic Mapping Functions Guide}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
 
 ## Overview
 
-The situas package now includes comprehensive geographic mapping functions that combine SITUAS Report 61 (municipalities data) with ISTAT shapefiles to create map-ready files for both R dashboards and Microsoft Power BI.
+The situas package includes comprehensive geographic mapping functions that combine SITUAS Report 61 (municipalities data) with ISTAT shapefiles to create map-ready files for both R dashboards and Microsoft Power BI.
 
 ## Quick Start
 
-```r
+```{r, eval = FALSE}
 library(situas)
 
 # 0. Extract shapefiles once (recommended for better performance)
@@ -25,7 +32,7 @@ map  # Display in RStudio viewer or browser
 
 ### Working with Different Territorial Levels
 
-```r
+```{r, eval = FALSE}
 # Provinces
 province_files <- prepare_comuni_maps(
   pfun = 64,
@@ -39,26 +46,26 @@ region_files <- prepare_comuni_maps(
 )
 ```
 
-## Setup (One-Time) ⚡
+## Setup (One-Time)
 
 Before first use, extract the shapefile from the zip archive for better performance:
 
-```r
+```{r, eval = FALSE}
 source("data-raw/extract_shapefiles.R")
 ```
 
 **What this does:**
+
 - Extracts shapefiles from `Limiti01012025_g.zip` to `data-raw/Com01012025_g/`
 - Creates directories for municipalities, provinces, regions, and geographic partitions
 - Shapefiles are then ready for immediate use (no re-extraction needed)
 
-
-
 **Performance comparison:**
-- ✅ **With extraction**: ~5-10 seconds per run (reads directly from disk)
-- ⚠️ **Without extraction**: ~15-20 seconds per run (extracts to temp each time)
 
-**Note:** If you skip this step, the function will still work by extracting to a temporary directory each time, but you'll see a tip message suggesting the one-time extraction.
+- **With extraction**: ~5-10 seconds per run (reads directly from disk)
+- **Without extraction**: ~15-20 seconds per run (extracts to temp each time)
+
+**Note:** If you skip this step, the function will still work by extracting to a temporary directory each time, but you will see a tip message suggesting the one-time extraction.
 
 ## Functions
 
@@ -67,12 +74,14 @@ source("data-raw/extract_shapefiles.R")
 Creates map-ready files from SITUAS data + shapefiles for different territorial levels.
 
 **Output Files:**
+
 - **RDS** (`situas_map_61_YYYYMMDD.rds`) - Fast R loading, 0.4-6 MB
 - **GeoJSON** (`situas_map_61_YYYYMMDD.geojson`) - Web standard, 4-35 MB
 - **TopoJSON** (`situas_map_61_YYYYMMDD_powerbi.json`) - Power BI format, 2-12 MB
 
 **Key Parameters:**
-```r
+
+```{r, eval = FALSE}
 prepare_comuni_maps(
   pfun = 61,                     # SITUAS report ID (see below)
   output_dir = "data",           # Where to save files
@@ -89,6 +98,7 @@ prepare_comuni_maps(
 ```
 
 **Common Report IDs:**
+
 | pfun | Description | Records | Best For |
 |------|-------------|---------|----------|
 | **61** | Current municipalities | ~7,900 | Most common use case |
@@ -99,11 +109,13 @@ prepare_comuni_maps(
 Use `search_reports()` to find other available reports.
 
 **Performance:**
+
 - Original shapefile: ~12 MB
 - After simplification: ~1-2 MB (60-80% reduction)
 - Processing time: ~10-30 seconds
 
 **Join Results:**
+
 - Successfully matched: **7,519 municipalities** (95.2%)
 - Unmatched: 377 (likely historical municipalities)
 
@@ -114,7 +126,8 @@ Use `search_reports()` to find other available reports.
 Creates interactive Leaflet maps for R dashboards and Shiny apps.
 
 **Basic Usage:**
-```r
+
+```{r, eval = FALSE}
 # Color by region
 map_comuni_leaflet(comuni, color_by = "COD_REG")
 
@@ -129,6 +142,7 @@ map_comuni_leaflet(comuni, tile_provider = "CartoDB.Positron")
 ```
 
 **Parameters:**
+
 - `color_by`: Attribute for coloring (e.g., "COD_REG", "COD_UTS", or NULL)
 - `palette`: Color palette name from RColorBrewer (default: "Set3")
 - `popup_fields`: Fields to show in popup (default: COMUNE, DEN_REG, DEN_UTS, PRO_COM)
@@ -142,7 +156,8 @@ map_comuni_leaflet(comuni, tile_provider = "CartoDB.Positron")
 Creates choropleth maps by joining external data.
 
 **Example:**
-```r
+
+```{r, eval = FALSE}
 # Your data with municipality-level statistics
 my_data <- data.frame(
   PRO_COM = c("1001", "1002", "1003"),
@@ -163,7 +178,7 @@ map_comuni_choropleth(
 
 ## Using in Shiny Dashboards
 
-```r
+```{r, eval = FALSE}
 library(shiny)
 library(leaflet)
 library(situas)
@@ -210,15 +225,16 @@ shinyApp(ui, server)
 ### Step-by-Step Instructions
 
 1. **Prepare the TopoJSON file:**
-   ```r
-   files <- prepare_comuni_maps(output_dir = "powerbi")
-   # Use the file ending in _powerbi.json
-   ```
+
+```{r, eval = FALSE}
+files <- prepare_comuni_maps(output_dir = "powerbi")
+# Use the file ending in _powerbi.json
+```
 
 2. **In Power BI Desktop:**
-   - Insert → Shape Map visual
+   - Insert > Shape Map visual
    - Click on the visual
-   - Format visual → Shape → Map settings
+   - Format visual > Shape > Map settings
    - Click "+ Add map"
    - Select your `.json` file (TopoJSON)
 
@@ -254,7 +270,7 @@ shinyApp(ui, server)
 
 ### Example 1: Working with Different Territorial Levels
 
-```r
+```{r, eval = FALSE}
 # Create maps for all three levels
 munic_files <- prepare_comuni_maps(pfun = 61)  # Municipalities
 prov_files <- prepare_comuni_maps(pfun = 64)   # Provinces
@@ -275,7 +291,7 @@ leaflet() %>%
 
 ### Example 2: Multiple Date Comparison
 
-```r
+```{r, eval = FALSE}
 # Create maps for different dates
 files_2020 <- prepare_comuni_maps(
   pfun = 61,
@@ -297,9 +313,9 @@ cat("2020:", nrow(comuni_2020), "municipalities\n")
 cat("2025:", nrow(comuni_2025), "municipalities\n")
 ```
 
-### Example 2: Region-Specific Maps
+### Example 3: Region-Specific Maps
 
-```r
+```{r, eval = FALSE}
 # Filter to a specific region
 tuscany <- comuni[comuni$DEN_REG == "Toscana", ]
 
@@ -307,9 +323,9 @@ tuscany <- comuni[comuni$DEN_REG == "Toscana", ]
 map_comuni_leaflet(tuscany, color_by = "COD_UTS")
 ```
 
-### Example 3: Custom Styling
+### Example 4: Custom Styling
 
-```r
+```{r, eval = FALSE}
 # Dark theme map
 map_comuni_leaflet(
   comuni,
@@ -319,9 +335,9 @@ map_comuni_leaflet(
 )
 ```
 
-### Example 4: Save Map as HTML
+### Example 5: Save Map as HTML
 
-```r
+```{r, eval = FALSE}
 library(htmlwidgets)
 
 map <- map_comuni_leaflet(comuni)
@@ -336,7 +352,7 @@ saveWidget(map, "italian_municipalities.html")
 
 - **Issue**: Shape Map visual is empty
 - **Solution**:
-  - Ensure you're using the `_powerbi.json` file (TopoJSON format)
+  - Ensure you are using the `_powerbi.json` file (TopoJSON format)
   - Check that your data's PRO_COM matches the format in the map
   - Try mapping with COMUNE name instead
 
@@ -344,31 +360,34 @@ saveWidget(map, "italian_municipalities.html")
 
 - **Issue**: Files are too big for your use case
 - **Solution**:
-  ```r
-  # Increase simplification (smaller files, less detail)
-  prepare_comuni_maps(
-    simplify = TRUE,
-    tolerance = 0.01  # Higher = more simplification
-  )
-  ```
+
+```{r, eval = FALSE}
+# Increase simplification (smaller files, less detail)
+prepare_comuni_maps(
+  simplify = TRUE,
+  tolerance = 0.01  # Higher = more simplification
+)
+```
 
 ### Some Municipalities Missing
 
 - **Issue**: 377 municipalities unmatched
 - **Cause**: Historical municipalities in shapefile but not in current SITUAS data
 - **Solution**: These are expected. If you need historical data, use a different date:
-  ```r
-  prepare_comuni_maps(date = "2020-01-01")
-  ```
+
+```{r, eval = FALSE}
+prepare_comuni_maps(date = "2020-01-01")
+```
 
 ### RColorBrewer Warning
 
 - **Issue**: Warning about palette size
 - **Cause**: Italy has 20 regions but some palettes have fewer colors
 - **Solution**: Use a different palette:
-  ```r
-  map_comuni_leaflet(comuni, palette = "Paired")  # Has 12 colors
-  ```
+
+```{r, eval = FALSE}
+map_comuni_leaflet(comuni, palette = "Paired")  # Has 12 colors
+```
 
 ---
 
@@ -377,7 +396,7 @@ saveWidget(map, "italian_municipalities.html")
 1. **Use RDS format in R** - Fastest loading
 2. **Enable simplification** - Reduces file size by 60-80%
 3. **Keep only needed attributes** - Smaller files load faster
-4. **Cache prepared files** - Don't regenerate every time
+4. **Cache prepared files** - Do not regenerate every time
 
 ---
 
@@ -387,9 +406,9 @@ When you run `prepare_comuni_maps()`, you get:
 
 ```
 data/
-├── comuni_map_20251014.rds          # R format (0.45 MB)
-├── comuni_map_20251014.geojson      # Web format (4.57 MB)
-└── comuni_map_20251014_powerbi.json # Power BI format (3.02 MB)
++-- comuni_map_20251014.rds          # R format (0.45 MB)
++-- comuni_map_20251014.geojson      # Web format (4.57 MB)
++-- comuni_map_20251014_powerbi.json # Power BI format (3.02 MB)
 ```
 
 ---
@@ -397,30 +416,27 @@ data/
 ## Technical Details
 
 ### Coordinate Reference System
+
 - **Input**: WGS 84 / UTM zone 32N (EPSG:32632)
 - **Output**: WGS 84 (EPSG:4326) - Standard for web mapping
 
 ### Simplification Algorithm
+
 - Uses `rmapshaper::ms_simplify()`
 - Topology-aware (borders remain connected)
 - Default tolerance: 0.001 degrees (~100 meters)
 
 ### Join Method
+
 - Joins on PRO_COM (municipality code)
 - Left join (keeps all shapefile features)
 - Resolves duplicate columns automatically
 
 ---
 
-## Need Help?
+## Additional Resources
 
 - Package documentation: `?prepare_comuni_maps`
-- SITUAS API docs: https://situas.istat.it
-- Leaflet docs: https://rstudio.github.io/leaflet/
-- Power BI Shape Map: https://learn.microsoft.com/power-bi/visuals/desktop-shape-map
-
----
-
-**Package Version**: 0.1.0
-**Last Updated**: 2025-10-14
-**Author**: Giampaolo Montaletti
+- SITUAS API docs: <https://situas.istat.it>
+- Leaflet docs: <https://rstudio.github.io/leaflet/>
+- Power BI Shape Map: <https://learn.microsoft.com/power-bi/visuals/desktop-shape-map>

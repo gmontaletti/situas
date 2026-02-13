@@ -54,8 +54,14 @@ test_that("list_istat_boundary_versions returns data.table", {
 test_that("list_istat_boundary_versions respects since_year", {
   skip_on_cran()
 
-  versions_2023 <- list_istat_boundary_versions(since_year = 2023, verbose = FALSE)
-  versions_2024 <- list_istat_boundary_versions(since_year = 2024, verbose = FALSE)
+  versions_2023 <- list_istat_boundary_versions(
+    since_year = 2023,
+    verbose = FALSE
+  )
+  versions_2024 <- list_istat_boundary_versions(
+    since_year = 2024,
+    verbose = FALSE
+  )
 
   expect_true(nrow(versions_2024) <= nrow(versions_2023))
   expect_true(all(versions_2024$year >= 2024))
@@ -67,13 +73,23 @@ test_that("list_istat_boundary_versions uses cache", {
   # Clear cache
   cache_dir <- get_cache_dir()
   cache_file <- file.path(cache_dir, "boundary_versions_2023.rds")
-  if (file.exists(cache_file)) unlink(cache_file)
+  if (file.exists(cache_file)) {
+    unlink(cache_file)
+  }
 
   # First call (no cache)
-  versions1 <- list_istat_boundary_versions(since_year = 2023, use_cache = TRUE, verbose = FALSE)
+  versions1 <- list_istat_boundary_versions(
+    since_year = 2023,
+    use_cache = TRUE,
+    verbose = FALSE
+  )
 
   # Second call (should use cache)
-  versions2 <- list_istat_boundary_versions(since_year = 2023, use_cache = TRUE, verbose = FALSE)
+  versions2 <- list_istat_boundary_versions(
+    since_year = 2023,
+    use_cache = TRUE,
+    verbose = FALSE
+  )
 
   expect_equal(versions1, versions2)
   expect_true(file.exists(cache_file))
@@ -123,7 +139,9 @@ test_that("load_boundaries_metadata returns empty table if no file", {
 
   expect_s3_class(metadata, "data.table")
   expect_equal(nrow(metadata), 0)
-  expect_true(all(c("date", "territorial_level", "source", "file_path") %in% names(metadata)))
+  expect_true(all(
+    c("date", "territorial_level", "source", "file_path") %in% names(metadata)
+  ))
 })
 
 # 4. download_istat_boundaries Tests -----
@@ -164,7 +182,8 @@ test_that("download_istat_boundaries defaults to current year", {
 
 test_that("download_istat_boundaries uses cache correctly", {
   skip_on_cran()
-  temp_dir <- withr::local_tempdir(); withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
 
   # Create fake cached file
   cache_dir <- get_boundaries_cache_dir()
@@ -201,7 +220,8 @@ test_that("download_istat_boundaries force_refresh ignores cache", {
   skip_on_cran()
   skip_if_offline()
 
-  temp_dir <- withr::local_tempdir(); withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
 
   # Create fake cached file
   cache_dir <- get_boundaries_cache_dir()
@@ -243,14 +263,26 @@ test_that("check_boundary_updates returns comparison table", {
   comparison <- check_boundary_updates(verbose = FALSE)
 
   expect_s3_class(comparison, "data.table")
-  expect_true(all(c("territorial_level", "current_date", "latest_date", "update_available") %in% names(comparison)))
-  expect_equal(nrow(comparison), 4)  # 4 territorial levels
-  expect_true(all(comparison$territorial_level %in% c("comuni", "province", "regioni", "ripartizioni")))
+  expect_true(all(
+    c(
+      "territorial_level",
+      "current_date",
+      "latest_date",
+      "update_available"
+    ) %in%
+      names(comparison)
+  ))
+  expect_equal(nrow(comparison), 4) # 4 territorial levels
+  expect_true(all(
+    comparison$territorial_level %in%
+      c("comuni", "province", "regioni", "ripartizioni")
+  ))
 })
 
 test_that("check_boundary_updates detects missing boundaries", {
   skip_on_cran()
-  temp_dir <- withr::local_tempdir(); withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
 
   # No cached boundaries
   comparison <- check_boundary_updates(verbose = FALSE)
@@ -261,7 +293,8 @@ test_that("check_boundary_updates detects missing boundaries", {
 
 test_that("check_boundary_updates detects when up to date", {
   skip_on_cran()
-  temp_dir <- withr::local_tempdir(); withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
 
   # Get latest date
   versions <- list_istat_boundary_versions(verbose = FALSE)
@@ -272,7 +305,11 @@ test_that("check_boundary_updates detects when up to date", {
     date = rep(latest_date, 4),
     territorial_level = c("comuni", "province", "regioni", "ripartizioni"),
     source = "OnData",
-    file_path = paste0("/path/to/", c("comuni", "province", "regioni", "ripartizioni"), ".shp"),
+    file_path = paste0(
+      "/path/to/",
+      c("comuni", "province", "regioni", "ripartizioni"),
+      ".shp"
+    ),
     download_timestamp = Sys.time(),
     file_size_mb = c(12.5, 2.1, 1.0, 0.5)
   )
@@ -287,7 +324,8 @@ test_that("check_boundary_updates detects when up to date", {
 # 6. get_cached_boundaries_info Tests -----
 
 test_that("get_cached_boundaries_info returns empty when no cache", {
-  temp_dir <- withr::local_tempdir(); withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
 
   info <- get_cached_boundaries_info(verbose = FALSE)
 
@@ -296,7 +334,8 @@ test_that("get_cached_boundaries_info returns empty when no cache", {
 })
 
 test_that("get_cached_boundaries_info lists all cached files", {
-  temp_dir <- withr::local_tempdir(); withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
 
   # Create sample metadata
   metadata <- data.table::data.table(
@@ -313,11 +352,12 @@ test_that("get_cached_boundaries_info lists all cached files", {
 
   expect_equal(nrow(info), 2)
   expect_true("exists" %in% names(info))
-  expect_true(all(!info$exists))  # Files don't actually exist
+  expect_true(all(!info$exists)) # Files don't actually exist
 })
 
 test_that("get_cached_boundaries_info filters by territorial level", {
-  temp_dir <- withr::local_tempdir(); withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
 
   # Create sample metadata
   metadata <- data.table::data.table(
@@ -330,8 +370,14 @@ test_that("get_cached_boundaries_info filters by territorial level", {
   )
   save_boundaries_metadata(metadata)
 
-  info_all <- get_cached_boundaries_info(territorial_level = "all", verbose = FALSE)
-  info_comuni <- get_cached_boundaries_info(territorial_level = "comuni", verbose = FALSE)
+  info_all <- get_cached_boundaries_info(
+    territorial_level = "all",
+    verbose = FALSE
+  )
+  info_comuni <- get_cached_boundaries_info(
+    territorial_level = "comuni",
+    verbose = FALSE
+  )
 
   expect_equal(nrow(info_all), 2)
   expect_equal(nrow(info_comuni), 1)
@@ -341,7 +387,8 @@ test_that("get_cached_boundaries_info filters by territorial level", {
 # 7. clean_boundary_cache Tests -----
 
 test_that("clean_boundary_cache dry run doesn't remove files", {
-  temp_dir <- withr::local_tempdir(); withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
 
   # Create sample metadata
   metadata <- data.table::data.table(
@@ -355,7 +402,11 @@ test_that("clean_boundary_cache dry run doesn't remove files", {
   save_boundaries_metadata(metadata)
 
   # Dry run
-  removed <- clean_boundary_cache(keep_latest_n = 1, dry_run = TRUE, verbose = FALSE)
+  removed <- clean_boundary_cache(
+    keep_latest_n = 1,
+    dry_run = TRUE,
+    verbose = FALSE
+  )
 
   # Metadata should be unchanged
   metadata_after <- load_boundaries_metadata()
@@ -366,7 +417,8 @@ test_that("clean_boundary_cache dry run doesn't remove files", {
 })
 
 test_that("clean_boundary_cache keeps latest N versions", {
-  temp_dir <- withr::local_tempdir(); withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
 
   # Create cache directory structure
   cache_dir <- get_boundaries_cache_dir()
@@ -393,7 +445,11 @@ test_that("clean_boundary_cache keeps latest N versions", {
   save_boundaries_metadata(metadata)
 
   # Clean - keep only latest 1
-  removed <- clean_boundary_cache(keep_latest_n = 1, dry_run = FALSE, verbose = FALSE)
+  removed <- clean_boundary_cache(
+    keep_latest_n = 1,
+    dry_run = FALSE,
+    verbose = FALSE
+  )
 
   # Should remove 1 file
   expect_length(removed, 1)
@@ -406,14 +462,19 @@ test_that("clean_boundary_cache keeps latest N versions", {
 })
 
 test_that("clean_boundary_cache filters by territorial level", {
-  temp_dir <- withr::local_tempdir(); withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
 
   # Create metadata for different levels
   metadata <- data.table::data.table(
     date = c("20250101", "20240101", "20250101"),
     territorial_level = c("comuni", "comuni", "province"),
     source = c("OnData", "OnData", "OnData"),
-    file_path = c("/path/to/comuni_2025.shp", "/path/to/comuni_2024.shp", "/path/to/province_2025.shp"),
+    file_path = c(
+      "/path/to/comuni_2025.shp",
+      "/path/to/comuni_2024.shp",
+      "/path/to/province_2025.shp"
+    ),
     download_timestamp = c(Sys.time(), Sys.time() - 86400, Sys.time()),
     file_size_mb = c(12.5, 12.3, 2.1)
   )
@@ -433,10 +494,11 @@ test_that("clean_boundary_cache filters by territorial level", {
 })
 
 test_that("clean_boundary_cache removes old files by date", {
-  temp_dir <- withr::local_tempdir(); withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
 
   # Create metadata with old files
-  old_time <- Sys.time() - (400 * 24 * 60 * 60)  # 400 days ago
+  old_time <- Sys.time() - (400 * 24 * 60 * 60) # 400 days ago
 
   metadata <- data.table::data.table(
     date = c("20250101", "20230101"),
@@ -461,10 +523,16 @@ test_that("clean_boundary_cache removes old files by date", {
 })
 
 test_that("clean_boundary_cache validates inputs", {
-  expect_error(clean_boundary_cache(keep_latest_n = -1), "keep_latest_n >= 0")
-  expect_error(clean_boundary_cache(older_than_days = -5), "older_than_days >= 0")
-  expect_error(clean_boundary_cache(dry_run = "yes"), "is.logical")
-  expect_error(clean_boundary_cache(verbose = "yes"), "is.logical")
+  expect_error(
+    clean_boundary_cache(keep_latest_n = -1),
+    "keep_latest_n must be"
+  )
+  expect_error(
+    clean_boundary_cache(older_than_days = -5),
+    "older_than_days must be"
+  )
+  expect_error(clean_boundary_cache(dry_run = "yes"), "dry_run must be logical")
+  expect_error(clean_boundary_cache(verbose = "yes"), "verbose must be logical")
 })
 
 # 8. Integration Tests -----
@@ -473,7 +541,8 @@ test_that("full workflow: download, check, info, clean", {
   skip_on_cran()
   skip_if_offline()
 
-  temp_dir <- withr::local_tempdir(); withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
 
   # Download ripartizioni (smallest file)
   download_result <- download_istat_boundaries(

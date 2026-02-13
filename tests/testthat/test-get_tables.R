@@ -53,16 +53,12 @@ test_that("get_situas_tables() validates pfun parameter type", {
   )
 })
 
-# Helper function to create mock API response
-create_mock_response <- function(n_items = 3) {
-  list(
-    items = lapply(seq_len(n_items), function(i) {
-      list(
-        id = i,
-        name = paste0("Table", i),
-        description = paste0("Description for table ", i)
-      )
-    })
+# Helper function to create mock data.table (as returned by situas_get_report_data)
+create_mock_data <- function(n_rows = 3) {
+  data.table::data.table(
+    COD_REG = seq_len(n_rows),
+    DEN_REG = paste0("Regione_", seq_len(n_rows)),
+    COD_CM = seq_len(n_rows)
   )
 }
 
@@ -139,19 +135,13 @@ test_that("get_situas_tables() validates verbose parameter", {
 test_that("get_situas_tables() downloads data from API when no cache exists", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
-  # Mock cache directory to use temp
-  temp_cache <- tempdir()
-
-  # Mock the cache functions
-  mockery::stub(get_situas_tables, "get_cache_dir", temp_cache)
+  # Mock cache as invalid (no cache)
   mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
-  mockery::stub(get_situas_tables, "load_from_cache", NULL)
+  mockery::stub(get_situas_tables, "save_to_cache", TRUE)
 
-  # Mock API call
-  mock_api_response <- create_mock_response(3)
-  mockery::stub(get_situas_tables, "situas_api_call", mock_api_response)
+  # Mock situas_get_report_data to return a data.table
+  mock_data <- create_mock_data(3)
+  mockery::stub(get_situas_tables, "situas_get_report_data", mock_data)
 
   # Call function
   result <- get_situas_tables(verbose = FALSE)
@@ -159,31 +149,32 @@ test_that("get_situas_tables() downloads data from API when no cache exists", {
   # Check result
   expect_s3_class(result, "data.table")
   expect_equal(nrow(result), 3)
-  expect_true(all(c("id", "name", "description") %in% names(result)))
+  expect_true(all(c("COD_REG", "DEN_REG", "COD_CM") %in% names(result)))
 })
 
 test_that("get_situas_tables() uses cache when valid", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
   # Create cached data
   cached_data <- data.table::data.table(
-    id = 1:2,
-    name = c("Cached1", "Cached2"),
-    description = c("Desc1", "Desc2")
+    COD_REG = 1:2,
+    DEN_REG = c("Cached1", "Cached2"),
+    COD_CM = 1:2
   )
   attr(cached_data, "cache_timestamp") <- Sys.time()
-
-  temp_cache <- tempdir()
 
   # Mock cache functions to return valid cached data
   mockery::stub(get_situas_tables, "is_cache_valid", TRUE)
   mockery::stub(get_situas_tables, "load_from_cache", cached_data)
+  mockery::stub(
+    get_situas_tables,
+    "get_cache_info",
+    list(timestamp = Sys.time())
+  )
 
   # Mock API call - should NOT be called
-  mock_api_call <- mockery::mock(stop("API should not be called"))
-  mockery::stub(get_situas_tables, "situas_api_call", mock_api_call)
+  mock_report_call <- mockery::mock(stop("API should not be called"))
+  mockery::stub(get_situas_tables, "situas_get_report_data", mock_report_call)
 
   # Call function
   result <- get_situas_tables(verbose = FALSE)
@@ -191,62 +182,46 @@ test_that("get_situas_tables() uses cache when valid", {
   # Check that cached data was returned
   expect_s3_class(result, "data.table")
   expect_equal(nrow(result), 2)
-  expect_equal(result$name, c("Cached1", "Cached2"))
+  expect_equal(result$DEN_REG, c("Cached1", "Cached2"))
 
   # Verify API was NOT called
-  mockery::expect_called(mock_api_call, 0)
+  mockery::expect_called(mock_report_call, 0)
 })
 
 test_that("get_situas_tables() respects force_refresh parameter", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
-  # Create cached data
-  cached_data <- data.table::data.table(
-    id = 1:2,
-    name = c("Cached1", "Cached2")
-  )
-
-  temp_cache <- tempdir()
-
   # Mock cache as valid but should be ignored due to force_refresh
   mockery::stub(get_situas_tables, "is_cache_valid", TRUE)
-  mockery::stub(get_situas_tables, "load_from_cache", cached_data)
-  mockery::stub(get_situas_tables, "get_cache_dir", temp_cache)
+  mockery::stub(get_situas_tables, "save_to_cache", TRUE)
 
-  # Mock API call - SHOULD be called
-  mock_api_response <- create_mock_response(3)
-  mock_api_call <- mockery::mock(mock_api_response)
-  mockery::stub(get_situas_tables, "situas_api_call", mock_api_call)
+  # Mock situas_get_report_data - SHOULD be called
+  mock_data <- create_mock_data(3)
+  mock_report_call <- mockery::mock(mock_data)
+  mockery::stub(get_situas_tables, "situas_get_report_data", mock_report_call)
 
   # Call with force_refresh = TRUE
   result <- get_situas_tables(force_refresh = TRUE, verbose = FALSE)
 
-  # Check that fresh data was returned (3 rows, not 2)
+  # Check that fresh data was returned
   expect_s3_class(result, "data.table")
   expect_equal(nrow(result), 3)
 
   # Verify API WAS called
-  mockery::expect_called(mock_api_call, 1)
+  mockery::expect_called(mock_report_call, 1)
 })
 
 test_that("get_situas_tables() refreshes when cache is invalid", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
-  temp_cache <- tempdir()
-
   # Mock cache as invalid
   mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
-  mockery::stub(get_situas_tables, "load_from_cache", NULL)
-  mockery::stub(get_situas_tables, "get_cache_dir", temp_cache)
+  mockery::stub(get_situas_tables, "save_to_cache", TRUE)
 
-  # Mock API call
-  mock_api_response <- create_mock_response(5)
-  mock_api_call <- mockery::mock(mock_api_response)
-  mockery::stub(get_situas_tables, "situas_api_call", mock_api_call)
+  # Mock situas_get_report_data
+  mock_data <- create_mock_data(5)
+  mock_report_call <- mockery::mock(mock_data)
+  mockery::stub(get_situas_tables, "situas_get_report_data", mock_report_call)
 
   # Call function
   result <- get_situas_tables(verbose = FALSE)
@@ -256,20 +231,23 @@ test_that("get_situas_tables() refreshes when cache is invalid", {
   expect_equal(nrow(result), 5)
 
   # Verify API was called
-  mockery::expect_called(mock_api_call, 1)
+  mockery::expect_called(mock_report_call, 1)
 })
 
 test_that("get_situas_tables() respects max_age_hours parameter", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
   # Test that max_age_hours is passed to is_cache_valid
   mock_is_cache_valid <- mockery::mock(TRUE)
   mockery::stub(get_situas_tables, "is_cache_valid", mock_is_cache_valid)
 
-  cached_data <- data.table::data.table(id = 1, name = "Test")
+  cached_data <- data.table::data.table(COD_REG = 1, DEN_REG = "Test")
   mockery::stub(get_situas_tables, "load_from_cache", cached_data)
+  mockery::stub(
+    get_situas_tables,
+    "get_cache_info",
+    list(timestamp = Sys.time())
+  )
 
   # Call with custom max_age_hours
   result <- get_situas_tables(max_age_hours = 48, verbose = FALSE)
@@ -283,25 +261,20 @@ test_that("get_situas_tables() respects max_age_hours parameter", {
 test_that("get_situas_tables() saves data to cache after download", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
-  temp_cache <- tempdir()
-
   # Mock cache as invalid
   mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
-  mockery::stub(get_situas_tables, "load_from_cache", NULL)
-  mockery::stub(get_situas_tables, "get_cache_dir", temp_cache)
 
-  # Mock API call
-  mock_api_response <- create_mock_response(3)
-  mockery::stub(get_situas_tables, "situas_api_call", mock_api_response)
+  # Mock situas_get_report_data
+  mock_data <- create_mock_data(3)
+  mockery::stub(get_situas_tables, "situas_get_report_data", mock_data)
 
   # Mock save_to_cache to track calls
   mock_save <- mockery::mock(TRUE)
   mockery::stub(get_situas_tables, "save_to_cache", mock_save)
 
-  # Call function
-  result <- get_situas_tables(verbose = FALSE)
+  # Call function with a known date for predictable cache key
+  test_date <- as.Date("2025-01-15")
+  result <- get_situas_tables(date = test_date, verbose = FALSE)
 
   # Verify save_to_cache was called
   mockery::expect_called(mock_save, 1)
@@ -309,28 +282,23 @@ test_that("get_situas_tables() saves data to cache after download", {
   # Check the arguments to save_to_cache
   call_args <- mockery::mock_args(mock_save)[[1]]
   expect_s3_class(call_args[[1]], "data.table")
-  expect_equal(call_args[[2]], "situas_tables")
+  expect_equal(call_args[[2]], "situas_report_61_20250115")
 })
 
 # Tests for verbose messages
 
-test_that("get_situas_tables() shows messages when verbose = TRUE", {
+test_that("get_situas_tables() shows download message when verbose = TRUE", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
-  temp_cache <- tempdir()
-
   mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
-  mockery::stub(get_situas_tables, "load_from_cache", NULL)
-  mockery::stub(get_situas_tables, "get_cache_dir", temp_cache)
+  mockery::stub(get_situas_tables, "save_to_cache", TRUE)
 
-  mock_api_response <- create_mock_response(3)
-  mockery::stub(get_situas_tables, "situas_api_call", mock_api_response)
+  mock_data <- create_mock_data(3)
+  mockery::stub(get_situas_tables, "situas_get_report_data", mock_data)
 
   expect_message(
     get_situas_tables(verbose = TRUE),
-    "Downloading available tables from SITUAS API"
+    "Downloading data for date"
   )
 
   expect_message(
@@ -339,19 +307,34 @@ test_that("get_situas_tables() shows messages when verbose = TRUE", {
   )
 })
 
+test_that("get_situas_tables() shows report info when verbose = TRUE", {
+  skip_if_not_installed("mockery")
+
+  mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
+  mockery::stub(get_situas_tables, "save_to_cache", TRUE)
+
+  mock_data <- create_mock_data(3)
+  mockery::stub(get_situas_tables, "situas_get_report_data", mock_data)
+
+  expect_message(
+    get_situas_tables(pfun = 61, verbose = TRUE),
+    "Report 61:"
+  )
+})
+
 test_that("get_situas_tables() shows cache message when using cached data", {
   skip_if_not_installed("mockery")
 
-  cached_data <- data.table::data.table(id = 1, name = "Test")
+  cached_data <- data.table::data.table(COD_REG = 1, DEN_REG = "Test")
   attr(cached_data, "cache_timestamp") <- Sys.time()
 
   mockery::stub(get_situas_tables, "is_cache_valid", TRUE)
   mockery::stub(get_situas_tables, "load_from_cache", cached_data)
-
-  # Note: get_cache_info is called but might not exist
-  # Mock it to avoid errors
-  mock_cache_info <- list(timestamp = Sys.time())
-  mockery::stub(get_situas_tables, "get_cache_info", mock_cache_info)
+  mockery::stub(
+    get_situas_tables,
+    "get_cache_info",
+    list(timestamp = Sys.time())
+  )
 
   expect_message(
     get_situas_tables(verbose = TRUE),
@@ -362,16 +345,11 @@ test_that("get_situas_tables() shows cache message when using cached data", {
 test_that("get_situas_tables() suppresses messages when verbose = FALSE", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
-  temp_cache <- tempdir()
-
   mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
-  mockery::stub(get_situas_tables, "load_from_cache", NULL)
-  mockery::stub(get_situas_tables, "get_cache_dir", temp_cache)
+  mockery::stub(get_situas_tables, "save_to_cache", TRUE)
 
-  mock_api_response <- create_mock_response(3)
-  mockery::stub(get_situas_tables, "situas_api_call", mock_api_response)
+  mock_data <- create_mock_data(3)
+  mockery::stub(get_situas_tables, "situas_get_report_data", mock_data)
 
   expect_silent(
     get_situas_tables(verbose = FALSE)
@@ -383,64 +361,43 @@ test_that("get_situas_tables() suppresses messages when verbose = FALSE", {
 test_that("get_situas_tables() handles API errors gracefully", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
-  temp_cache <- tempdir()
-
   mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
-  mockery::stub(get_situas_tables, "load_from_cache", NULL)
-  mockery::stub(get_situas_tables, "get_cache_dir", temp_cache)
 
-  # Mock API call to throw error
-  mockery::stub(get_situas_tables, "situas_api_call", function(...) {
+  # Mock situas_get_report_data to throw error
+  mockery::stub(get_situas_tables, "situas_get_report_data", function(...) {
     stop("Network timeout")
   })
 
   expect_error(
     get_situas_tables(verbose = FALSE),
-    "Failed to retrieve SITUAS tables"
+    "Failed to retrieve SITUAS report 61"
   )
 })
 
-test_that("get_situas_tables() handles parsing errors", {
+test_that("get_situas_tables() wraps API error messages", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
-  temp_cache <- tempdir()
-
   mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
-  mockery::stub(get_situas_tables, "load_from_cache", NULL)
-  mockery::stub(get_situas_tables, "get_cache_dir", temp_cache)
 
-  # Mock successful API call
-  mock_api_response <- create_mock_response(3)
-  mockery::stub(get_situas_tables, "situas_api_call", mock_api_response)
-
-  # Mock parse_funzione_response to throw error
-  mockery::stub(get_situas_tables, "parse_funzione_response", function(...) {
-    stop("Cannot parse response")
+  # Mock situas_get_report_data to throw error with specific message
+  mockery::stub(get_situas_tables, "situas_get_report_data", function(...) {
+    stop("Connection refused")
   })
 
   expect_error(
     get_situas_tables(verbose = FALSE),
-    "Failed to retrieve SITUAS tables"
+    "Failed to retrieve SITUAS report 61: Connection refused"
   )
 })
 
 test_that("get_situas_tables() returns data.table with correct structure", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
-  temp_cache <- tempdir()
-
   mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
-  mockery::stub(get_situas_tables, "load_from_cache", NULL)
-  mockery::stub(get_situas_tables, "get_cache_dir", temp_cache)
+  mockery::stub(get_situas_tables, "save_to_cache", TRUE)
 
-  mock_api_response <- create_mock_response(3)
-  mockery::stub(get_situas_tables, "situas_api_call", mock_api_response)
+  mock_data <- create_mock_data(3)
+  mockery::stub(get_situas_tables, "situas_get_report_data", mock_data)
 
   result <- get_situas_tables(verbose = FALSE)
 
@@ -452,17 +409,12 @@ test_that("get_situas_tables() returns data.table with correct structure", {
 test_that("get_situas_tables() handles empty API response", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
-  temp_cache <- tempdir()
-
   mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
-  mockery::stub(get_situas_tables, "load_from_cache", NULL)
-  mockery::stub(get_situas_tables, "get_cache_dir", temp_cache)
+  mockery::stub(get_situas_tables, "save_to_cache", TRUE)
 
-  # Empty response
-  mock_api_response <- list(items = list())
-  mockery::stub(get_situas_tables, "situas_api_call", mock_api_response)
+  # Empty data.table response
+  mock_data <- data.table::data.table()
+  mockery::stub(get_situas_tables, "situas_get_report_data", mock_data)
 
   result <- get_situas_tables(verbose = FALSE)
 
@@ -475,26 +427,14 @@ test_that("get_situas_tables() handles empty API response", {
 test_that("get_situas_tables() complete workflow: no cache -> download -> cache", {
   skip_if_not_installed("mockery")
 
-  withr::local_tempdir()
-
-  temp_cache <- tempdir()
-  cache_key <- "situas_tables"
-
-  # Initially no cache
-  mockery::stub(get_situas_tables, "get_cache_dir", temp_cache)
-
   # First call - should check cache validity
   mock_is_valid <- mockery::mock(FALSE)
   mockery::stub(get_situas_tables, "is_cache_valid", mock_is_valid)
 
-  # Load should return NULL
-  mock_load <- mockery::mock(NULL)
-  mockery::stub(get_situas_tables, "load_from_cache", mock_load)
-
-  # API should be called
-  mock_api_response <- create_mock_response(3)
-  mock_api <- mockery::mock(mock_api_response)
-  mockery::stub(get_situas_tables, "situas_api_call", mock_api)
+  # Mock situas_get_report_data
+  mock_data <- create_mock_data(3)
+  mock_report <- mockery::mock(mock_data)
+  mockery::stub(get_situas_tables, "situas_get_report_data", mock_report)
 
   # Save should be called
   mock_save <- mockery::mock(TRUE)
@@ -504,7 +444,7 @@ test_that("get_situas_tables() complete workflow: no cache -> download -> cache"
 
   # Verify workflow
   mockery::expect_called(mock_is_valid, 1)
-  mockery::expect_called(mock_api, 1)
+  mockery::expect_called(mock_report, 1)
   mockery::expect_called(mock_save, 1)
 
   expect_s3_class(result, "data.table")
@@ -525,7 +465,11 @@ test_that("get_situas_tables() requires date_end for PERIODO reports", {
     periodo_pfun <- periodo_reports$pfun[1]
 
     expect_error(
-      get_situas_tables(pfun = periodo_pfun, date = Sys.Date(), verbose = FALSE),
+      get_situas_tables(
+        pfun = periodo_pfun,
+        date = Sys.Date(),
+        verbose = FALSE
+      ),
       "is a PERIODO type report and requires both date \\(start\\) and date_end parameters"
     )
   } else {
@@ -538,13 +482,19 @@ test_that("get_situas_tables() requires date_end for ATTUALIZZAZIONE reports", {
   skip_on_cran()
 
   # Test with ATTUALIZZAZIONE report without date_end
-  attualizzazione_reports <- situas_reports_metadata[analysis_type == "ATTUALIZZAZIONE"]
+  attualizzazione_reports <- situas_reports_metadata[
+    analysis_type == "ATTUALIZZAZIONE"
+  ]
 
   if (nrow(attualizzazione_reports) > 0) {
     attualizzazione_pfun <- attualizzazione_reports$pfun[1]
 
     expect_error(
-      get_situas_tables(pfun = attualizzazione_pfun, date = Sys.Date(), verbose = FALSE),
+      get_situas_tables(
+        pfun = attualizzazione_pfun,
+        date = Sys.Date(),
+        verbose = FALSE
+      ),
       "is a ATTUALIZZAZIONE type report and requires both date \\(start\\) and date_end parameters"
     )
   } else {
@@ -586,7 +536,7 @@ test_that("get_situas_tables() accepts date_end for PERIODO reports", {
         date_end = as.Date("2025-01-01"),
         verbose = FALSE
       ),
-      NA  # Expect no error
+      NA # Expect no error
     )
   } else {
     skip("No PERIODO type reports available in metadata")
@@ -607,8 +557,11 @@ test_that("get_situas_tables() creates correct cache key for DATA reports", {
   }
 
   mockery::stub(get_situas_tables, "save_to_cache", mock_save)
-  mockery::stub(get_situas_tables, "situas_get_report_data",
-                data.table::data.table(id = 1, name = "Test"))
+  mockery::stub(
+    get_situas_tables,
+    "situas_get_report_data",
+    data.table::data.table(id = 1, name = "Test")
+  )
 
   # Call with DATA report (pfun 61)
   test_date <- as.Date("2020-01-01")
@@ -639,8 +592,11 @@ test_that("get_situas_tables() creates correct cache key for PERIODO reports", {
     }
 
     mockery::stub(get_situas_tables, "save_to_cache", mock_save)
-    mockery::stub(get_situas_tables, "situas_get_report_data",
-                  data.table::data.table(id = 1, name = "Test"))
+    mockery::stub(
+      get_situas_tables,
+      "situas_get_report_data",
+      data.table::data.table(id = 1, name = "Test")
+    )
 
     # Call with PERIODO report
     test_date_start <- as.Date("2020-01-01")
@@ -671,8 +627,11 @@ test_that("get_situas_tables() shows correct verbose message for PERIODO reports
     # Mock functions
     mockery::stub(get_situas_tables, "is_cache_valid", FALSE)
     mockery::stub(get_situas_tables, "save_to_cache", TRUE)
-    mockery::stub(get_situas_tables, "situas_get_report_data",
-                  data.table::data.table(id = 1, name = "Test"))
+    mockery::stub(
+      get_situas_tables,
+      "situas_get_report_data",
+      data.table::data.table(id = 1, name = "Test")
+    )
 
     # Call with PERIODO report and verbose = TRUE
     expect_message(
@@ -702,7 +661,10 @@ test_that("get_situas_tables() passes date_end to situas_get_report_data", {
     mockery::stub(get_situas_tables, "save_to_cache", TRUE)
 
     # Create mock to track calls
-    mock_get_report <- mockery::mock(data.table::data.table(id = 1, name = "Test"))
+    mock_get_report <- mockery::mock(data.table::data.table(
+      id = 1,
+      name = "Test"
+    ))
     mockery::stub(get_situas_tables, "situas_get_report_data", mock_get_report)
 
     # Call with PERIODO report
