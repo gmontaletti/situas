@@ -63,8 +63,8 @@ parse_classification_version <- function(filename) {
 #' classification standards page.
 #'
 #' @param url Character. URL of the classifications page.
-#' @param use_js Logical. If TRUE, use JavaScript-enabled scraping (requires
-#'   RSelenium or chromote). Default is FALSE.
+#' @param use_js Logical. If TRUE, use JavaScript-enabled scraping.
+#'   Default is FALSE. Currently not implemented.
 #' @param verbose Logical. Print progress messages. Default is TRUE.
 #'
 #' @return A data.table with columns:
@@ -76,9 +76,7 @@ parse_classification_version <- function(filename) {
 #'
 #' @keywords internal
 #' @noRd
-scrape_classification_links <- function(url,
-                                       use_js = FALSE,
-                                       verbose = TRUE) {
+scrape_classification_links <- function(url, use_js = FALSE, verbose = TRUE) {
   # Check for required packages
   if (!requireNamespace("rvest", quietly = TRUE)) {
     stop(
@@ -96,21 +94,17 @@ scrape_classification_links <- function(url,
     )
   }
 
-  # JavaScript scraping not yet implemented
   if (use_js) {
-    if (!requireNamespace("RSelenium", quietly = TRUE) &&
-        !requireNamespace("chromote", quietly = TRUE)) {
-      stop(
-        "JavaScript scraping requires RSelenium or chromote package. ",
-        "Install one with: install.packages('RSelenium') or install.packages('chromote')",
-        call. = FALSE
-      )
-    }
-    stop("JavaScript scraping not yet implemented. Set use_js = FALSE.", call. = FALSE)
+    stop(
+      "JavaScript scraping not yet implemented. Set use_js = FALSE.",
+      call. = FALSE
+    )
   }
 
   # Approach 1: Simple HTTP with rvest and polite
-  if (verbose) message("Connecting to: ", url)
+  if (verbose) {
+    message("Connecting to: ", url)
+  }
 
   # Create polite session
   session <- tryCatch(
@@ -122,8 +116,11 @@ scrape_classification_links <- function(url,
     },
     error = function(e) {
       stop(
-        "Failed to connect to URL: ", url, "\n",
-        "Error: ", e$message,
+        "Failed to connect to URL: ",
+        url,
+        "\n",
+        "Error: ",
+        e$message,
         call. = FALSE
       )
     }
@@ -136,8 +133,11 @@ scrape_classification_links <- function(url,
     },
     error = function(e) {
       stop(
-        "Failed to scrape page: ", url, "\n",
-        "Error: ", e$message,
+        "Failed to scrape page: ",
+        url,
+        "\n",
+        "Error: ",
+        e$message,
         call. = FALSE
       )
     }
@@ -162,7 +162,8 @@ scrape_classification_links <- function(url,
     error = function(e) {
       stop(
         "Failed to extract links from page. ",
-        "Error: ", e$message,
+        "Error: ",
+        e$message,
         call. = FALSE
       )
     }
@@ -171,7 +172,9 @@ scrape_classification_links <- function(url,
   # Check if any links found
   if (length(excel_links$urls) == 0) {
     if (verbose) {
-      message("No Excel files found. Page may require JavaScript or authentication.")
+      message(
+        "No Excel files found. Page may require JavaScript or authentication."
+      )
     }
     return(data.table::data.table(
       filename = character(0),
@@ -219,21 +222,27 @@ scrape_classification_links <- function(url,
 #'
 #' @keywords internal
 #' @noRd
-download_classification_file <- function(url,
-                                        filename,
-                                        output_dir,
-                                        force = FALSE,
-                                        verbose = TRUE) {
+download_classification_file <- function(
+  url,
+  filename,
+  output_dir,
+  force = FALSE,
+  verbose = TRUE
+) {
   # Create output path
   output_path <- file.path(output_dir, filename)
 
   # Skip if exists and not forcing
   if (file.exists(output_path) && !force) {
-    if (verbose) message("  File already exists: ", filename)
+    if (verbose) {
+      message("  File already exists: ", filename)
+    }
     return(output_path)
   }
 
-  if (verbose) message("  Downloading: ", filename)
+  if (verbose) {
+    message("  Downloading: ", filename)
+  }
 
   # Handle relative URLs (add base if needed)
   if (!grepl("^https?://", url)) {
@@ -265,8 +274,11 @@ download_classification_file <- function(url,
 
       if (file_size < 1000) {
         warning(
-          "Downloaded file is suspiciously small: ", filename,
-          " (", file_size, " bytes). ",
+          "Downloaded file is suspiciously small: ",
+          filename,
+          " (",
+          file_size,
+          " bytes). ",
           "May be an error page or invalid file.",
           call. = FALSE
         )
@@ -274,8 +286,11 @@ download_classification_file <- function(url,
 
       if (verbose) {
         message(
-          "  Downloaded: ", basename(output_path),
-          " (", round(file_size / 1024^2, 2), " MB)"
+          "  Downloaded: ",
+          basename(output_path),
+          " (",
+          round(file_size / 1024^2, 2),
+          " MB)"
         )
       }
 
@@ -287,9 +302,14 @@ download_classification_file <- function(url,
         unlink(output_path)
       }
       stop(
-        "Failed to download ", filename, "\n",
-        "URL: ", full_url, "\n",
-        "Error: ", e$message,
+        "Failed to download ",
+        filename,
+        "\n",
+        "URL: ",
+        full_url,
+        "\n",
+        "Error: ",
+        e$message,
         call. = FALSE
       )
     }
@@ -316,14 +336,14 @@ download_classification_file <- function(url,
 #'
 #' @param output_dir Character. Directory where files will be saved.
 #'   Defaults to "data-raw/classifications". Created if it doesn't exist.
-#' @param url Character. URL of the classifications page. Default is the
-#'   official Italian Labor Ministry standards page.
+#' @param url Character. URL of the classifications page. Defaults to the
+#'   official Italian Labor Ministry classification standards page if NULL.
 #' @param download_all Logical. If TRUE, download all versions found. If FALSE
 #'   (default), download only the latest version of each classification type.
 #' @param force_refresh Logical. If TRUE, re-download files even if they already
 #'   exist. Default is FALSE.
-#' @param use_js_scraping Logical. If TRUE, use JavaScript-enabled scraping
-#'   (requires RSelenium or chromote). Default is FALSE. Currently not implemented.
+#' @param use_js_scraping Logical. If TRUE, use JavaScript-enabled scraping.
+#'   Default is FALSE. Currently not implemented.
 #' @param classification_types Character vector. Types to download. NULL (default)
 #'   downloads all types. Available types include: "classificazioni_standard",
 #'   "allegato", "migrazione".
@@ -367,7 +387,7 @@ download_classification_file <- function(url,
 #' \url{https://urponline.lavoro.gov.it/s/standard-tecnici/classificazioni-standard}
 #'
 #' @importFrom data.table data.table
-#' @importFrom utils download.file packageVersion
+#' @importFrom utils download.file packageVersion object.size
 #'
 #' @export
 #'
@@ -399,35 +419,42 @@ download_classification_file <- function(url,
 #' files[, .(filename, version, type, file_size)]
 #' }
 download_classification_standards <- function(
-    output_dir = "data-raw/classifications",
-    url = "https://urponline.lavoro.gov.it/s/standard-tecnici/classificazioni-standard?language=it",
-    download_all = FALSE,
-    force_refresh = FALSE,
-    use_js_scraping = FALSE,
-    classification_types = NULL,
-    verbose = TRUE) {
-
+  output_dir = "data-raw/classifications",
+  url = NULL,
+  download_all = FALSE,
+  force_refresh = FALSE,
+  use_js_scraping = FALSE,
+  classification_types = NULL,
+  verbose = TRUE
+) {
   # 1. Input validation -----
 
+  if (is.null(url)) {
+    url <- paste0(
+      "https://urponline.lavoro.gov.it/",
+      "s/standard-tecnici/classificazioni-standard?language=it"
+    )
+  }
+
   stopifnot(
-    "output_dir must be a single character string" =
-      is.character(output_dir) && length(output_dir) == 1,
-    "url must be a single character string" =
-      is.character(url) && length(url) == 1,
-    "download_all must be logical" =
-      is.logical(download_all) && length(download_all) == 1,
-    "force_refresh must be logical" =
-      is.logical(force_refresh) && length(force_refresh) == 1,
-    "use_js_scraping must be logical" =
-      is.logical(use_js_scraping) && length(use_js_scraping) == 1,
-    "verbose must be logical" =
-      is.logical(verbose) && length(verbose) == 1
+    "output_dir must be a single character string" = is.character(output_dir) &&
+      length(output_dir) == 1,
+    "url must be a single character string" = is.character(url) &&
+      length(url) == 1,
+    "download_all must be logical" = is.logical(download_all) &&
+      length(download_all) == 1,
+    "force_refresh must be logical" = is.logical(force_refresh) &&
+      length(force_refresh) == 1,
+    "use_js_scraping must be logical" = is.logical(use_js_scraping) &&
+      length(use_js_scraping) == 1,
+    "verbose must be logical" = is.logical(verbose) && length(verbose) == 1
   )
 
   if (!is.null(classification_types)) {
     stopifnot(
-      "classification_types must be character vector" =
-        is.character(classification_types)
+      "classification_types must be character vector" = is.character(
+        classification_types
+      )
     )
   }
 
@@ -456,7 +483,8 @@ download_classification_standards <- function(
     stop(
       "No Excel files found on page.\n",
       "The page may require JavaScript, authentication, or has changed structure.\n",
-      "Try downloading files manually from: ", url,
+      "Try downloading files manually from: ",
+      url,
       call. = FALSE
     )
   }
@@ -472,10 +500,13 @@ download_classification_standards <- function(
   }
 
   # Add version and type columns
-  links_dt[, c("version", "type") := {
-    parsed <- parse_classification_version(filename)
-    list(parsed$version, parsed$type)
-  }, by = seq_len(nrow(links_dt))]
+  links_dt[,
+    c("version", "type") := {
+      parsed <- parse_classification_version(filename)
+      list(parsed$version, parsed$type)
+    },
+    by = seq_len(nrow(links_dt))
+  ]
 
   if (verbose) {
     message("\nClassification types found:")
@@ -501,8 +532,11 @@ download_classification_standards <- function(
 
     if (verbose) {
       message(
-        "\nFiltered to types: ", paste(classification_types, collapse = ", "),
-        " (", nrow(links_dt), " files)"
+        "\nFiltered to types: ",
+        paste(classification_types, collapse = ", "),
+        " (",
+        nrow(links_dt),
+        " files)"
       )
     }
   }
@@ -516,15 +550,18 @@ download_classification_standards <- function(
 
     # Keep only the highest version for each type
     # For files without version number, keep them all
-    links_dt[, keep := {
-      if (all(is.na(version))) {
-        # No versions, keep all
-        rep(TRUE, .N)
-      } else {
-        # Keep the row(s) with max version
-        version == max(version, na.rm = TRUE) | is.na(version)
-      }
-    }, by = type]
+    links_dt[,
+      keep := {
+        if (all(is.na(version))) {
+          # No versions, keep all
+          rep(TRUE, .N)
+        } else {
+          # Keep the row(s) with max version
+          version == max(version, na.rm = TRUE) | is.na(version)
+        }
+      },
+      by = type
+    ]
 
     links_dt <- links_dt[keep == TRUE]
     links_dt[, keep := NULL]
@@ -535,8 +572,10 @@ download_classification_standards <- function(
         message("\nFiles to download:")
         for (i in seq_len(nrow(links_dt))) {
           message(
-            "  - ", links_dt$filename[i],
-            " (type: ", links_dt$type[i],
+            "  - ",
+            links_dt$filename[i],
+            " (type: ",
+            links_dt$type[i],
             ", version: ",
             ifelse(is.na(links_dt$version[i]), "N/A", links_dt$version[i]),
             ")"

@@ -11,3 +11,4 @@
 ^\.Rprofile$
 ^\.Rhistory$
 ^\.DS_Store$
+^docs$

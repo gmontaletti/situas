@@ -28,6 +28,8 @@
 #' @return A leaflet map object that can be displayed interactively or embedded
 #'   in Shiny applications.
 #'
+#' @importFrom magrittr %>%
+#'
 #' @export
 #'
 #' @examples
@@ -60,26 +62,27 @@
 #'   color_by = "custom_category"
 #' )
 #' }
-map_territorial_units <- function(territorial_sf,
-                                   name_col = NULL,
-                                   id_col = NULL,
-                                   color_by = NULL,
-                                   palette = "Set3",
-                                   popup_fields = NULL,
-                                   tile_provider = "OpenStreetMap",
-                                   add_legend = TRUE,
-                                   verbose = FALSE) {
+map_territorial_units <- function(
+  territorial_sf,
+  name_col = NULL,
+  id_col = NULL,
+  color_by = NULL,
+  palette = "Set3",
+  popup_fields = NULL,
+  tile_provider = "OpenStreetMap",
+  add_legend = TRUE,
+  verbose = FALSE
+) {
   # 1. Input validation -----
   stopifnot(
     "territorial_sf must be an sf object" = inherits(territorial_sf, "sf"),
-    "palette must be a character string" =
-      is.character(palette) && length(palette) == 1,
-    "tile_provider must be a character string" =
-      is.character(tile_provider) && length(tile_provider) == 1,
-    "add_legend must be logical" =
-      is.logical(add_legend) && length(add_legend) == 1,
-    "verbose must be logical" =
-      is.logical(verbose) && length(verbose) == 1
+    "palette must be a character string" = is.character(palette) &&
+      length(palette) == 1,
+    "tile_provider must be a character string" = is.character(tile_provider) &&
+      length(tile_provider) == 1,
+    "add_legend must be logical" = is.logical(add_legend) &&
+      length(add_legend) == 1,
+    "verbose must be logical" = is.logical(verbose) && length(verbose) == 1
   )
 
   # Validate geometry type (POLYGON or MULTIPOLYGON only)
@@ -89,7 +92,8 @@ map_territorial_units <- function(territorial_sf,
   if (!any(geom_types %in% valid_geom_types)) {
     stop(
       "territorial_sf must contain POLYGON or MULTIPOLYGON geometries.\n",
-      "Found: ", paste(geom_types, collapse = ", "),
+      "Found: ",
+      paste(geom_types, collapse = ", "),
       call. = FALSE
     )
   }
@@ -106,7 +110,8 @@ map_territorial_units <- function(territorial_sf,
     if (is.null(name_col)) {
       stop(
         "Could not auto-detect name column. Please specify name_col.\n",
-        "Available columns: ", paste(names(territorial_sf), collapse = ", "),
+        "Available columns: ",
+        paste(names(territorial_sf), collapse = ", "),
         call. = FALSE
       )
     }
@@ -116,8 +121,11 @@ map_territorial_units <- function(territorial_sf,
   } else {
     if (!name_col %in% names(territorial_sf)) {
       stop(
-        "Specified name_col '", name_col, "' not found in data.\n",
-        "Available columns: ", paste(names(territorial_sf), collapse = ", "),
+        "Specified name_col '",
+        name_col,
+        "' not found in data.\n",
+        "Available columns: ",
+        paste(names(territorial_sf), collapse = ", "),
         call. = FALSE
       )
     }
@@ -132,8 +140,11 @@ map_territorial_units <- function(territorial_sf,
   } else {
     if (!id_col %in% names(territorial_sf)) {
       stop(
-        "Specified id_col '", id_col, "' not found in data.\n",
-        "Available columns: ", paste(names(territorial_sf), collapse = ", "),
+        "Specified id_col '",
+        id_col,
+        "' not found in data.\n",
+        "Available columns: ",
+        paste(names(territorial_sf), collapse = ", "),
         call. = FALSE
       )
     }
@@ -144,8 +155,11 @@ map_territorial_units <- function(territorial_sf,
     stopifnot("color_by must be a character string" = is.character(color_by))
     if (!color_by %in% names(territorial_sf)) {
       stop(
-        "color_by field '", color_by, "' not found in data.\n",
-        "Available fields: ", paste(names(territorial_sf), collapse = ", "),
+        "color_by field '",
+        color_by,
+        "' not found in data.\n",
+        "Available fields: ",
+        paste(names(territorial_sf), collapse = ", "),
         call. = FALSE
       )
     }
@@ -155,10 +169,15 @@ map_territorial_units <- function(territorial_sf,
   if (is.null(popup_fields)) {
     popup_fields <- get_default_popup_fields(territorial_sf, name_col, id_col)
     if (verbose && length(popup_fields) > 0) {
-      message("Auto-selected popup fields: ", paste(popup_fields, collapse = ", "))
+      message(
+        "Auto-selected popup fields: ",
+        paste(popup_fields, collapse = ", ")
+      )
     }
   } else {
-    stopifnot("popup_fields must be a character vector" = is.character(popup_fields))
+    stopifnot(
+      "popup_fields must be a character vector" = is.character(popup_fields)
+    )
   }
 
   # 7. Prepare popup content -----
@@ -206,19 +225,32 @@ map_territorial_units <- function(territorial_sf,
 
       # Try to map codes to human-readable names
       if (color_by == "COD_REG" && "DEN_REG" %in% names(territorial_sf)) {
-        region_mapping <- unique(territorial_sf[, c("COD_REG", "DEN_REG"), drop = TRUE])
+        region_mapping <- unique(territorial_sf[,
+          c("COD_REG", "DEN_REG"),
+          drop = TRUE
+        ])
         names_vec <- region_mapping$DEN_REG
         names(names_vec) <- as.character(region_mapping$COD_REG)
         legend_labels <- names_vec[as.character(unique_values)]
         legend_title <- "Regione"
-      } else if (color_by == "COD_UTS" && "DEN_UTS" %in% names(territorial_sf)) {
-        province_mapping <- unique(territorial_sf[, c("COD_UTS", "DEN_UTS"), drop = TRUE])
+      } else if (
+        color_by == "COD_UTS" && "DEN_UTS" %in% names(territorial_sf)
+      ) {
+        province_mapping <- unique(territorial_sf[,
+          c("COD_UTS", "DEN_UTS"),
+          drop = TRUE
+        ])
         names_vec <- province_mapping$DEN_UTS
         names(names_vec) <- as.character(province_mapping$COD_UTS)
         legend_labels <- names_vec[as.character(unique_values)]
         legend_title <- "Provincia"
-      } else if (color_by == "COD_RIP" && "DEN_RIP" %in% names(territorial_sf)) {
-        rip_mapping <- unique(territorial_sf[, c("COD_RIP", "DEN_RIP"), drop = TRUE])
+      } else if (
+        color_by == "COD_RIP" && "DEN_RIP" %in% names(territorial_sf)
+      ) {
+        rip_mapping <- unique(territorial_sf[,
+          c("COD_RIP", "DEN_RIP"),
+          drop = TRUE
+        ])
         names_vec <- rip_mapping$DEN_RIP
         names(names_vec) <- as.character(rip_mapping$COD_RIP)
         legend_labels <- names_vec[as.character(unique_values)]
@@ -277,7 +309,13 @@ map_territorial_units <- function(territorial_sf,
 #' @noRd
 detect_name_column <- function(sf_obj) {
   # Priority order for name columns
-  name_candidates <- c("COMUNE", "DEN_REG", "DEN_UTS", "DEN_RIP", "denominazione")
+  name_candidates <- c(
+    "COMUNE",
+    "DEN_REG",
+    "DEN_UTS",
+    "DEN_RIP",
+    "denominazione"
+  )
 
   for (col in name_candidates) {
     if (col %in% names(sf_obj)) {
@@ -321,8 +359,12 @@ detect_id_column <- function(sf_obj) {
 
   # Fallback: look for columns with "cod" or "id" in name
   geom_col <- attr(sf_obj, "sf_column")
-  potential_ids <- grep("^(cod|id|code)", names(sf_obj),
-                        ignore.case = TRUE, value = TRUE)
+  potential_ids <- grep(
+    "^(cod|id|code)",
+    names(sf_obj),
+    ignore.case = TRUE,
+    value = TRUE
+  )
   potential_ids <- setdiff(potential_ids, geom_col)
 
   if (length(potential_ids) > 0) {
@@ -393,13 +435,19 @@ get_default_popup_fields <- function(sf_obj, name_col, id_col) {
   if (terr_type == "comuni") {
     # Comuni: show comune, region, province, and code
     fields <- c(name_col)
-    if ("DEN_REG" %in% cols) fields <- c(fields, "DEN_REG")
-    if ("DEN_UTS" %in% cols) fields <- c(fields, "DEN_UTS")
+    if ("DEN_REG" %in% cols) {
+      fields <- c(fields, "DEN_REG")
+    }
+    if ("DEN_UTS" %in% cols) {
+      fields <- c(fields, "DEN_UTS")
+    }
     if (!is.null(id_col)) fields <- c(fields, id_col)
   } else if (terr_type == "province") {
     # Province: show province, region, and code
     fields <- c(name_col)
-    if ("DEN_REG" %in% cols) fields <- c(fields, "DEN_REG")
+    if ("DEN_REG" %in% cols) {
+      fields <- c(fields, "DEN_REG")
+    }
     if (!is.null(id_col)) fields <- c(fields, id_col)
   } else if (terr_type == "regioni") {
     # Regioni: show region name and code
@@ -490,20 +538,22 @@ get_default_popup_fields <- function(sf_obj, name_col, id_col) {
 #'   legend_title = "Unemployment Rate (%)"
 #' )
 #' }
-map_territorial_choropleth <- function(territorial_sf,
-                                        data,
-                                        join_by = NULL,
-                                        value_col,
-                                        name_col = NULL,
-                                        palette = "YlOrRd",
-                                        legend_title = value_col,
-                                        popup_fields = NULL) {
+map_territorial_choropleth <- function(
+  territorial_sf,
+  data,
+  join_by = NULL,
+  value_col,
+  name_col = NULL,
+  palette = "YlOrRd",
+  legend_title = value_col,
+  popup_fields = NULL
+) {
   # 1. Input validation -----
   stopifnot(
     "territorial_sf must be an sf object" = inherits(territorial_sf, "sf"),
     "data must be a data.frame" = is.data.frame(data),
-    "value_col must be a character string" =
-      is.character(value_col) && length(value_col) == 1
+    "value_col must be a character string" = is.character(value_col) &&
+      length(value_col) == 1
   )
 
   # 2. Auto-detect or validate join_by -----
@@ -519,31 +569,40 @@ map_territorial_choropleth <- function(territorial_sf,
     }
   } else {
     stopifnot(
-      "join_by must be a character string" =
-        is.character(join_by) && length(join_by) == 1
+      "join_by must be a character string" = is.character(join_by) &&
+        length(join_by) == 1
     )
   }
 
   if (!join_by %in% names(territorial_sf)) {
     stop(
-      "join_by column '", join_by, "' not found in territorial_sf.\n",
-      "Available columns: ", paste(names(territorial_sf), collapse = ", "),
+      "join_by column '",
+      join_by,
+      "' not found in territorial_sf.\n",
+      "Available columns: ",
+      paste(names(territorial_sf), collapse = ", "),
       call. = FALSE
     )
   }
 
   if (!join_by %in% names(data)) {
     stop(
-      "join_by column '", join_by, "' not found in data.\n",
-      "Available columns: ", paste(names(data), collapse = ", "),
+      "join_by column '",
+      join_by,
+      "' not found in data.\n",
+      "Available columns: ",
+      paste(names(data), collapse = ", "),
       call. = FALSE
     )
   }
 
   if (!value_col %in% names(data)) {
     stop(
-      "value_col '", value_col, "' not found in data.\n",
-      "Available columns: ", paste(names(data), collapse = ", "),
+      "value_col '",
+      value_col,
+      "' not found in data.\n",
+      "Available columns: ",
+      paste(names(data), collapse = ", "),
       call. = FALSE
     )
   }
@@ -554,7 +613,8 @@ map_territorial_choropleth <- function(territorial_sf,
     if (is.null(name_col)) {
       stop(
         "Could not auto-detect name column. Please specify name_col.\n",
-        "Available columns: ", paste(names(territorial_sf), collapse = ", "),
+        "Available columns: ",
+        paste(names(territorial_sf), collapse = ", "),
         call. = FALSE
       )
     }
@@ -586,8 +646,15 @@ map_territorial_choropleth <- function(territorial_sf,
     # Add value
     val <- row[[value_col]]
     if (!is.na(val) && !is.null(val)) {
-      parts <- c(parts, paste0("<b>", legend_title, ":</b> ",
-                               format(as.numeric(val), big.mark = ",")))
+      parts <- c(
+        parts,
+        paste0(
+          "<b>",
+          legend_title,
+          ":</b> ",
+          format(as.numeric(val), big.mark = ",")
+        )
+      )
     } else {
       parts <- c(parts, paste0("<b>", legend_title, ":</b> N/A"))
     }
@@ -622,7 +689,8 @@ map_territorial_choropleth <- function(territorial_sf,
         bringToFront = TRUE
       ),
       label = ~ paste0(
-        territorial_joined[[name_col]], ": ",
+        territorial_joined[[name_col]],
+        ": ",
         format(as.numeric(territorial_joined[[value_col]]), big.mark = ",")
       )
     ) %>%

@@ -79,23 +79,28 @@
 #' # Suppress messages
 #' municipalities <- get_situas_tables(verbose = FALSE)
 #' }
-get_situas_tables <- function(pfun = 61,
-                              date = Sys.Date(),
-                              date_end = NULL,
-                              force_refresh = FALSE,
-                              max_age_hours = 24,
-                              verbose = TRUE) {
-
+get_situas_tables <- function(
+  pfun = 61,
+  date = Sys.Date(),
+  date_end = NULL,
+  force_refresh = FALSE,
+  max_age_hours = 24,
+  verbose = TRUE
+) {
   # Input validation
   stopifnot(
-    "pfun must be a single integer" =
-      is.numeric(pfun) && length(pfun) == 1 && pfun == as.integer(pfun),
-    "force_refresh must be logical" =
-      is.logical(force_refresh) && length(force_refresh) == 1 && !is.na(force_refresh),
-    "max_age_hours must be numeric and positive" =
-      is.numeric(max_age_hours) && length(max_age_hours) == 1 && max_age_hours > 0,
-    "verbose must be logical" =
-      is.logical(verbose) && length(verbose) == 1 && !is.na(verbose)
+    "pfun must be a single integer" = is.numeric(pfun) &&
+      length(pfun) == 1 &&
+      pfun == as.integer(pfun),
+    "force_refresh must be logical" = is.logical(force_refresh) &&
+      length(force_refresh) == 1 &&
+      !is.na(force_refresh),
+    "max_age_hours must be numeric and positive" = is.numeric(max_age_hours) &&
+      length(max_age_hours) == 1 &&
+      max_age_hours > 0,
+    "verbose must be logical" = is.logical(verbose) &&
+      length(verbose) == 1 &&
+      !is.na(verbose)
   )
 
   # 1. Validate pfun against known reports -----
@@ -121,7 +126,10 @@ get_situas_tables <- function(pfun = 61,
     if (length(nearby_pfuns) > 0) {
       error_msg <- paste0(
         error_msg,
-        sprintf("\n  Nearby report IDs: %s", paste(sort(nearby_pfuns), collapse = ", "))
+        sprintf(
+          "\n  Nearby report IDs: %s",
+          paste(sort(nearby_pfuns), collapse = ", ")
+        )
       )
     }
 
@@ -143,7 +151,8 @@ get_situas_tables <- function(pfun = 61,
       stop(
         sprintf(
           "Report %d is a %s type report and requires both date (start) and date_end parameters",
-          pfun, report_type
+          pfun,
+          report_type
         ),
         call. = FALSE
       )
@@ -169,9 +178,11 @@ get_situas_tables <- function(pfun = 61,
       sprintf("Report %d: %s", pfun, report_info$title[1])
     )
     message(
-      sprintf("  Type: %s | Valid: %s",
-              report_info$analysis_type[1],
-              report_info$date_range[1])
+      sprintf(
+        "  Type: %s | Valid: %s",
+        report_info$analysis_type[1],
+        report_info$date_range[1]
+      )
     )
   }
 
@@ -181,7 +192,14 @@ get_situas_tables <- function(pfun = 61,
   # For PERIODO/ATTUALIZZAZIONE reports, include date_end in cache key
   if (!is.null(date_end)) {
     date_end_str <- format(as.Date(date_end), "%Y%m%d")
-    cache_key <- paste0("situas_report_", pfun, "_", date_str, "_", date_end_str)
+    cache_key <- paste0(
+      "situas_report_",
+      pfun,
+      "_",
+      date_str,
+      "_",
+      date_end_str
+    )
   } else {
     # For DATA reports, use only single date
     cache_key <- paste0("situas_report_", pfun, "_", date_str)
@@ -196,7 +214,10 @@ get_situas_tables <- function(pfun = 61,
       if (verbose) {
         cache_info <- get_cache_info(cache_key)
         if (!is.null(cache_info$timestamp)) {
-          message("Using cached data from ", format(cache_info$timestamp, "%Y-%m-%d %H:%M:%S"))
+          message(
+            "Using cached data from ",
+            format(cache_info$timestamp, "%Y-%m-%d %H:%M:%S")
+          )
         } else {
           message("Using cached data")
         }
@@ -211,31 +232,49 @@ get_situas_tables <- function(pfun = 61,
     if (!is.null(date_end)) {
       # Show date range for PERIODO/ATTUALIZZAZIONE reports
       message(
-        sprintf("Downloading data for period %s to %s...",
-                format(as.Date(date), "%Y-%m-%d"),
-                format(as.Date(date_end), "%Y-%m-%d"))
+        sprintf(
+          "Downloading data for period %s to %s...",
+          format(as.Date(date), "%Y-%m-%d"),
+          format(as.Date(date_end), "%Y-%m-%d")
+        )
       )
     } else {
       # Show single date for DATA reports
-      message("Downloading data for date ", format(as.Date(date), "%Y-%m-%d"), "...")
+      message(
+        "Downloading data for date ",
+        format(as.Date(date), "%Y-%m-%d"),
+        "..."
+      )
     }
   }
 
   # Call API with appropriate parameters
-  tryCatch({
-    data <- situas_get_report_data(pfun = pfun, date = date, date_end = date_end)
+  tryCatch(
+    {
+      data <- situas_get_report_data(
+        pfun = pfun,
+        date = date,
+        date_end = date_end
+      )
 
-    # Save to cache
-    save_to_cache(data, cache_key)
+      # Save to cache
+      save_to_cache(data, cache_key)
 
-    if (verbose) {
-      message("Successfully downloaded and cached ", nrow(data), " row(s)")
+      if (verbose) {
+        message("Successfully downloaded and cached ", nrow(data), " row(s)")
+      }
+
+      return(data)
+    },
+    error = function(e) {
+      # Enhanced error handling
+      stop(
+        "Failed to retrieve SITUAS report ",
+        pfun,
+        ": ",
+        conditionMessage(e),
+        call. = FALSE
+      )
     }
-
-    return(data)
-
-  }, error = function(e) {
-    # Enhanced error handling
-    stop("Failed to retrieve SITUAS report ", pfun, ": ", conditionMessage(e), call. = FALSE)
-  })
+  )
 }

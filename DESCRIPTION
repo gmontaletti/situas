@@ -24,7 +24,8 @@ Imports:
     openxlsx,
     sf,
     geojsonio,
-    leaflet
+    leaflet,
+    magrittr
 Suggests:
     testthat (>= 3.0.0),
     mockery,

@@ -26,7 +26,7 @@
 #' @param tolerance Numeric. Simplification tolerance parameter for
 #'   \code{rmapshaper::ms_simplify} (0-1). Higher values = more simplification.
 #'   This is the "keep" parameter: proportion of points to retain. Only used if
-#'   simplify = TRUE. Default is 0.01 (keep 1% of points).
+#'   simplify = TRUE. Default is 0.01 (keep 1\% of points).
 #' @param verbose Logical. If TRUE (default), print progress messages including
 #'   CRS transformations, simplification results, and file creation.
 #'
@@ -66,9 +66,9 @@
 #' geometries (e.g., detailed municipality boundaries). The \code{tolerance}
 #' parameter controls how much simplification occurs:
 #' \itemize{
-#'   \item 0.01 = keep 1% of points (aggressive simplification)
-#'   \item 0.1 = keep 10% of points (moderate simplification)
-#'   \item 0.5 = keep 50% of points (gentle simplification)
+#'   \item 0.01 = keep 1\% of points (aggressive simplification)
+#'   \item 0.1 = keep 10\% of points (moderate simplification)
+#'   \item 0.5 = keep 50\% of points (gentle simplification)
 #' }
 #'
 #' Simplification uses topology-preserving algorithms that maintain shared
@@ -120,7 +120,7 @@
 #'   file = "italy_comuni_simple.json",
 #'   keep_cols = c("PRO_COM", "COMUNE", "COD_REG"),
 #'   simplify = TRUE,
-#'   tolerance = 0.01  # Keep 1% of points
+#'   tolerance = 0.01  # Keep 1 percent of points
 #' )
 #'
 #' # With aggressive simplification for large datasets
@@ -147,15 +147,17 @@
 #'   object_name = "province"
 #' )
 #' }
-sf_to_powerbi_topojson <- function(sf_data,
-                                    file = "output_powerbi.json",
-                                    object_name = "features",
-                                    id_col = NULL,
-                                    name_col = NULL,
-                                    keep_cols = NULL,
-                                    simplify = FALSE,
-                                    tolerance = 0.01,
-                                    verbose = TRUE) {
+sf_to_powerbi_topojson <- function(
+  sf_data,
+  file = "output_powerbi.json",
+  object_name = "features",
+  id_col = NULL,
+  name_col = NULL,
+  keep_cols = NULL,
+  simplify = FALSE,
+  tolerance = 0.01,
+  verbose = TRUE
+) {
   # 1. Input validation -----
 
   # Check sf_data
@@ -166,30 +168,29 @@ sf_to_powerbi_topojson <- function(sf_data,
   if (!inherits(sf_data, "sf")) {
     stop(
       "sf_data must be an sf object.\n",
-      "You provided: ", paste(class(sf_data), collapse = ", "),
+      "You provided: ",
+      paste(class(sf_data), collapse = ", "),
       call. = FALSE
     )
   }
 
   # Check basic parameters
   stopifnot(
-    "file must be a character string" =
-      is.character(file) && length(file) == 1,
-    "object_name must be a character string" =
-      is.character(object_name) && length(object_name) == 1,
-    "simplify must be logical" =
-      is.logical(simplify) && length(simplify) == 1,
-    "tolerance must be numeric" =
-      is.numeric(tolerance) && length(tolerance) == 1,
-    "verbose must be logical" =
-      is.logical(verbose) && length(verbose) == 1
+    "file must be a character string" = is.character(file) && length(file) == 1,
+    "object_name must be a character string" = is.character(object_name) &&
+      length(object_name) == 1,
+    "simplify must be logical" = is.logical(simplify) && length(simplify) == 1,
+    "tolerance must be numeric" = is.numeric(tolerance) &&
+      length(tolerance) == 1,
+    "verbose must be logical" = is.logical(verbose) && length(verbose) == 1
   )
 
   # Validate tolerance range
   if (tolerance <= 0 || tolerance > 1) {
     stop(
       "tolerance must be between 0 and 1 (exclusive of 0).\n",
-      "You provided: ", tolerance,
+      "You provided: ",
+      tolerance,
       call. = FALSE
     )
   }
@@ -198,7 +199,8 @@ sf_to_powerbi_topojson <- function(sf_data,
   if (!grepl("\\.json$", file, ignore.case = TRUE)) {
     stop(
       "file must end with .json extension (Power BI requirement).\n",
-      "You provided: ", file,
+      "You provided: ",
+      file,
       "\nExample: 'output.json' or 'maps/italy.json'",
       call. = FALSE
     )
@@ -207,22 +209,21 @@ sf_to_powerbi_topojson <- function(sf_data,
   # Validate optional string parameters
   if (!is.null(id_col)) {
     stopifnot(
-      "id_col must be a character string" =
-        is.character(id_col) && length(id_col) == 1
+      "id_col must be a character string" = is.character(id_col) &&
+        length(id_col) == 1
     )
   }
 
   if (!is.null(name_col)) {
     stopifnot(
-      "name_col must be a character string" =
-        is.character(name_col) && length(name_col) == 1
+      "name_col must be a character string" = is.character(name_col) &&
+        length(name_col) == 1
     )
   }
 
   if (!is.null(keep_cols)) {
     stopifnot(
-      "keep_cols must be a character vector" =
-        is.character(keep_cols)
+      "keep_cols must be a character vector" = is.character(keep_cols)
     )
   }
 
@@ -234,7 +235,8 @@ sf_to_powerbi_topojson <- function(sf_data,
   if (length(invalid_types) > 0) {
     stop(
       "sf_data must contain only POLYGON or MULTIPOLYGON geometries.\n",
-      "Found invalid types: ", paste(invalid_types, collapse = ", "),
+      "Found invalid types: ",
+      paste(invalid_types, collapse = ", "),
       "\nPower BI Shape Map only supports polygon geometries.",
       call. = FALSE
     )
@@ -279,7 +281,11 @@ sf_to_powerbi_topojson <- function(sf_data,
       cols_to_keep <- c(cols_to_keep, id_col)
     }
 
-    if (!is.null(name_col) && name_col %in% all_cols && !name_col %in% cols_to_keep) {
+    if (
+      !is.null(name_col) &&
+        name_col %in% all_cols &&
+        !name_col %in% cols_to_keep
+    ) {
       cols_to_keep <- c(cols_to_keep, name_col)
     }
 
@@ -301,24 +307,34 @@ sf_to_powerbi_topojson <- function(sf_data,
 
     if (verbose) {
       kept_attrs <- setdiff(cols_to_keep, geom_col)
-      message("Keeping ", length(kept_attrs), " attribute column(s): ",
-              paste(kept_attrs, collapse = ", "))
+      message(
+        "Keeping ",
+        length(kept_attrs),
+        " attribute column(s): ",
+        paste(kept_attrs, collapse = ", ")
+      )
     }
   }
 
   # Validate id_col and name_col exist in final dataset
   if (!is.null(id_col) && !id_col %in% names(sf_data)) {
     warning(
-      "id_col '", id_col, "' not found in sf_data columns.\n",
-      "Available columns: ", paste(setdiff(names(sf_data), geom_col), collapse = ", "),
+      "id_col '",
+      id_col,
+      "' not found in sf_data columns.\n",
+      "Available columns: ",
+      paste(setdiff(names(sf_data), geom_col), collapse = ", "),
       call. = FALSE
     )
   }
 
   if (!is.null(name_col) && !name_col %in% names(sf_data)) {
     warning(
-      "name_col '", name_col, "' not found in sf_data columns.\n",
-      "Available columns: ", paste(setdiff(names(sf_data), geom_col), collapse = ", "),
+      "name_col '",
+      name_col,
+      "' not found in sf_data columns.\n",
+      "Available columns: ",
+      paste(setdiff(names(sf_data), geom_col), collapse = ", "),
       call. = FALSE
     )
   }
@@ -347,7 +363,10 @@ sf_to_powerbi_topojson <- function(sf_data,
       )
 
       size_after <- object.size(sf_data)
-      reduction_pct <- round((1 - as.numeric(size_after) / as.numeric(size_before)) * 100, 1)
+      reduction_pct <- round(
+        (1 - as.numeric(size_after) / as.numeric(size_before)) * 100,
+        1
+      )
 
       if (verbose) {
         message("  Size before: ", format(size_before, units = "auto"))
@@ -380,19 +399,26 @@ sf_to_powerbi_topojson <- function(sf_data,
           sf_data,
           file = file,
           object_name = object_name,
-          quantization = 1e5,  # High quantization for precision (as per user request)
+          quantization = 1e5, # High quantization for precision (as per user request)
           overwrite = TRUE
         )
       })
 
       if (verbose && file.exists(file)) {
         file_size <- file.size(file)
-        message("  Saved TopoJSON: ", file, " (", round(file_size / 1024^2, 2), " MB)")
+        message(
+          "  Saved TopoJSON: ",
+          file,
+          " (",
+          round(file_size / 1024^2, 2),
+          " MB)"
+        )
       }
     },
     error = function(e) {
       warning(
-        "Primary export method failed: ", e$message,
+        "Primary export method failed: ",
+        e$message,
         "\nTrying alternative method via GeoJSON...",
         call. = FALSE
       )
@@ -402,12 +428,23 @@ sf_to_powerbi_topojson <- function(sf_data,
 
       tryCatch(
         {
-          sf::st_write(sf_data, dsn = temp_geojson, driver = "GeoJSON", quiet = TRUE)
+          sf::st_write(
+            sf_data,
+            dsn = temp_geojson,
+            driver = "GeoJSON",
+            quiet = TRUE
+          )
 
           # Read as text and convert to TopoJSON with quantization
-          geojson_text <- paste(readLines(temp_geojson, warn = FALSE), collapse = "\n")
-          topo <- geojsonio::geo2topo(geojson_text, object_name = object_name,
-                                      quantization = 1e5)
+          geojson_text <- paste(
+            readLines(temp_geojson, warn = FALSE),
+            collapse = "\n"
+          )
+          topo <- geojsonio::geo2topo(
+            geojson_text,
+            object_name = object_name,
+            quantization = 1e5
+          )
 
           # Write TopoJSON
           writeLines(topo, file)
@@ -417,8 +454,13 @@ sf_to_powerbi_topojson <- function(sf_data,
 
           if (verbose && file.exists(file)) {
             file_size <- file.size(file)
-            message("  Saved TopoJSON (alternative method): ", file,
-                    " (", round(file_size / 1024^2, 2), " MB)")
+            message(
+              "  Saved TopoJSON (alternative method): ",
+              file,
+              " (",
+              round(file_size / 1024^2, 2),
+              " MB)"
+            )
           }
         },
         error = function(e2) {
@@ -429,8 +471,12 @@ sf_to_powerbi_topojson <- function(sf_data,
 
           stop(
             "Failed to export TopoJSON using both methods.\n",
-            "Primary error: ", e$message, "\n",
-            "Secondary error: ", e2$message, "\n",
+            "Primary error: ",
+            e$message,
+            "\n",
+            "Secondary error: ",
+            e2$message,
+            "\n",
             "Please check your sf object and try again.",
             call. = FALSE
           )

@@ -46,7 +46,7 @@ Default is FALSE.}
 \item{tolerance}{Numeric. Simplification tolerance parameter for
 \code{rmapshaper::ms_simplify} (0-1). Higher values = more simplification.
 This is the "keep" parameter: proportion of points to retain. Only used if
-simplify = TRUE. Default is 0.01 (keep 1% of points).}
+simplify = TRUE. Default is 0.01 (keep 1\% of points).}
 
 \item{verbose}{Logical. If TRUE (default), print progress messages including
 CRS transformations, simplification results, and file creation.}
@@ -93,9 +93,9 @@ Setting \code{simplify = TRUE} can dramatically reduce file size for complex
 geometries (e.g., detailed municipality boundaries). The \code{tolerance}
 parameter controls how much simplification occurs:
 \itemize{
-  \item 0.01 = keep 1% of points (aggressive simplification)
-  \item 0.1 = keep 10% of points (moderate simplification)
-  \item 0.5 = keep 50% of points (gentle simplification)
+  \item 0.01 = keep 1\% of points (aggressive simplification)
+  \item 0.1 = keep 10\% of points (moderate simplification)
+  \item 0.5 = keep 50\% of points (gentle simplification)
 }
 
 Simplification uses topology-preserving algorithms that maintain shared
@@ -145,7 +145,7 @@ sf_to_powerbi_topojson(
   file = "italy_comuni_simple.json",
   keep_cols = c("PRO_COM", "COMUNE", "COD_REG"),
   simplify = TRUE,
-  tolerance = 0.01  # Keep 1\% of points
+  tolerance = 0.01  # Keep 1 percent of points
 )
 
 # With aggressive simplification for large datasets

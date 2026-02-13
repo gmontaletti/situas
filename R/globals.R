@@ -32,6 +32,7 @@ utils::globalVariables(c(
   "year",
 
   # data.table special symbols
+  ".",
   ":=",
   ".SD",
   ".N",

@@ -6,8 +6,7 @@
 \usage{
 download_classification_standards(
   output_dir = "data-raw/classifications",
-  url =
-    "https://urponline.lavoro.gov.it/s/standard-tecnici/classificazioni-standard?language=it",
+  url = NULL,
   download_all = FALSE,
   force_refresh = FALSE,
   use_js_scraping = FALSE,
@@ -19,8 +18,8 @@ download_classification_standards(
 \item{output_dir}{Character. Directory where files will be saved.
 Defaults to "data-raw/classifications". Created if it doesn't exist.}
 
-\item{url}{Character. URL of the classifications page. Default is the
-official Italian Labor Ministry standards page.}
+\item{url}{Character. URL of the classifications page. Defaults to the
+official Italian Labor Ministry classification standards page if NULL.}
 
 \item{download_all}{Logical. If TRUE, download all versions found. If FALSE
 (default), download only the latest version of each classification type.}
@@ -28,8 +27,8 @@ official Italian Labor Ministry standards page.}
 \item{force_refresh}{Logical. If TRUE, re-download files even if they already
 exist. Default is FALSE.}
 
-\item{use_js_scraping}{Logical. If TRUE, use JavaScript-enabled scraping
-(requires RSelenium or chromote). Default is FALSE. Currently not implemented.}
+\item{use_js_scraping}{Logical. If TRUE, use JavaScript-enabled scraping.
+Default is FALSE. Currently not implemented.}
 
 \item{classification_types}{Character vector. Types to download. NULL (default)
 downloads all types. Available types include: "classificazioni_standard",
