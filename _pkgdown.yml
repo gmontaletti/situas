@@ -1,0 +1,67 @@
+url: https://gmontaletti.github.io/situas/
+
+reference:
+  - title: API access
+    desc: >
+      Core functions for querying the SITUAS API and retrieving report data,
+      metadata, and record counts.
+    contents:
+      - get_situas_tables
+      - situas_get_report_data
+      - situas_get_report_metadata
+      - situas_get_report_count
+
+  - title: Report discovery
+    desc: >
+      Functions for browsing, searching, and inspecting the catalogue of
+      reports available through the SITUAS API.
+    contents:
+      - list_available_reports
+      - search_reports
+      - scan_situas_reports
+      - get_report_details
+      - list_report_categories
+
+  - title: Classifications
+    desc: >
+      Download territorial classification standards used to reclassify
+      codes across time.
+    contents:
+      - download_classification_standards
+
+  - title: ISTAT boundaries
+    desc: >
+      Download and manage cached ISTAT administrative boundary shapefiles.
+    contents:
+      - download_istat_boundaries
+      - list_istat_boundary_versions
+      - check_boundary_updates
+      - get_cached_boundaries_info
+      - clean_boundary_cache
+
+  - title: Territorial mapping
+    desc: >
+      Prepare and render territorial maps at municipal (comuni) and other
+      administrative levels, including static choropleths and interactive
+      leaflet maps.
+    contents:
+      - prepare_comuni_maps
+      - prepare_territorial_maps
+      - map_comuni_leaflet
+      - map_comuni_choropleth
+      - map_territorial_units
+      - map_territorial_choropleth
+
+  - title: Export
+    desc: >
+      Convert spatial data to formats suitable for external tools.
+    contents:
+      - sf_to_powerbi_topojson
+
+  - title: Metadata management
+    desc: >
+      Maintain the internal report metadata table used to validate report
+      IDs and determine report types.
+    contents:
+      - update_reports_metadata
+      - situas_reports_metadata
