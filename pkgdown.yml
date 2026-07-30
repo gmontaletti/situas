@@ -1,7 +1,10 @@
-pandoc: 3.8.3
+pandoc: 3.9.0.2
 pkgdown: 2.1.3
 pkgdown_sha: ~
 articles:
   download-classifications: download-classifications.html
   map-functions-guide: map-functions-guide.html
-last_built: 2026-02-13T10:53Z
+last_built: 2026-07-30T11:49Z
+urls:
+  reference: https://gmontaletti.github.io/situas/reference
+  article: https://gmontaletti.github.io/situas/articles

@@ -38,6 +38,9 @@
       <a href="../articles/map-functions-guide.html">Geographic Mapping Functions Guide</a>
     </li>
   </ul></li>
+<li>
+  <a href="../news/index.html">Changelog</a>
+</li>
       </ul><ul class="nav navbar-nav navbar-right"></ul></div><!--/.nav-collapse -->
   </div><!--/.container -->
 </div><!--/.navbar -->
@@ -51,89 +54,13 @@
     </div>
 
     <table class="ref-index"><colgroup><col class="alias"><col class="title"></colgroup><tbody><tr><th colspan="2">
-          <h2 id="all-functions">All functions <a href="#all-functions" class="anchor" aria-hidden="true"></a></h2>
-          <p class="section-desc"></p>
+          <h2 id="api-access">API access <a href="#api-access" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p><p>Core functions for querying the SITUAS API and retrieving report data, metadata, and record counts.</p>
         </th>
       </tr></tbody><tbody><tr><td>
-          <p><code><a href="check_boundary_updates.html">check_boundary_updates()</a></code> </p>
-        </td>
-        <td><p>Check for Boundary Updates</p></td>
-      </tr><tr><td>
-          <p><code><a href="clean_boundary_cache.html">clean_boundary_cache()</a></code> </p>
-        </td>
-        <td><p>Clean Boundary Cache</p></td>
-      </tr><tr><td>
-          <p><code><a href="download_classification_standards.html">download_classification_standards()</a></code> </p>
-        </td>
-        <td><p>Download Italian Labor Ministry Classification Standards</p></td>
-      </tr><tr><td>
-          <p><code><a href="download_istat_boundaries.html">download_istat_boundaries()</a></code> </p>
-        </td>
-        <td><p>Download ISTAT Administrative Boundary Shapefiles</p></td>
-      </tr><tr><td>
-          <p><code><a href="get_cached_boundaries_info.html">get_cached_boundaries_info()</a></code> </p>
-        </td>
-        <td><p>Get Information About Cached Boundaries</p></td>
-      </tr><tr><td>
-          <p><code><a href="get_report_details.html">get_report_details()</a></code> </p>
-        </td>
-        <td><p>Get Report Details by ID</p></td>
-      </tr><tr><td>
           <p><code><a href="get_situas_tables.html">get_situas_tables()</a></code> </p>
         </td>
         <td><p>Get Available SITUAS Tables</p></td>
-      </tr><tr><td>
-          <p><code><a href="list_available_reports.html">list_available_reports()</a></code> </p>
-        </td>
-        <td><p>List All Available SITUAS Reports</p></td>
-      </tr><tr><td>
-          <p><code><a href="list_istat_boundary_versions.html">list_istat_boundary_versions()</a></code> </p>
-        </td>
-        <td><p>List Available ISTAT Boundary Versions</p></td>
-      </tr><tr><td>
-          <p><code><a href="list_report_categories.html">list_report_categories()</a></code> </p>
-        </td>
-        <td><p>List Reports by Category</p></td>
-      </tr><tr><td>
-          <p><code><a href="map_comuni_choropleth.html">map_comuni_choropleth()</a></code> </p>
-        </td>
-        <td><p>Create Choropleth Map by Joining External Data</p></td>
-      </tr><tr><td>
-          <p><code><a href="map_comuni_leaflet.html">map_comuni_leaflet()</a></code> </p>
-        </td>
-        <td><p>Create Interactive Leaflet Map of Italian Municipalities</p></td>
-      </tr><tr><td>
-          <p><code><a href="map_territorial_choropleth.html">map_territorial_choropleth()</a></code> </p>
-        </td>
-        <td><p>Create Choropleth Map by Joining External Data</p></td>
-      </tr><tr><td>
-          <p><code><a href="map_territorial_units.html">map_territorial_units()</a></code> </p>
-        </td>
-        <td><p>Create Interactive Leaflet Map of Italian Territorial Units</p></td>
-      </tr><tr><td>
-          <p><code><a href="prepare_comuni_maps.html">prepare_comuni_maps()</a></code> </p>
-        </td>
-        <td><p>Prepare Geographic Maps of Italian Territorial Units</p></td>
-      </tr><tr><td>
-          <p><code><a href="prepare_territorial_maps.html">prepare_territorial_maps()</a></code> </p>
-        </td>
-        <td><p>Prepare Geographic Maps of Italian Territorial Units</p></td>
-      </tr><tr><td>
-          <p><code><a href="scan_situas_reports.html">scan_situas_reports()</a></code> </p>
-        </td>
-        <td><p>Scan for Valid SITUAS Report IDs</p></td>
-      </tr><tr><td>
-          <p><code><a href="search_reports.html">search_reports()</a></code> </p>
-        </td>
-        <td><p>Search SITUAS Reports by Keywords</p></td>
-      </tr><tr><td>
-          <p><code><a href="sf_to_powerbi_topojson.html">sf_to_powerbi_topojson()</a></code> </p>
-        </td>
-        <td><p>Convert SF Object to Power BI-Compatible TopoJSON</p></td>
-      </tr><tr><td>
-          <p><code><a href="situas_get_report_count.html">situas_get_report_count()</a></code> </p>
-        </td>
-        <td><p>Get SITUAS Report Row Count</p></td>
       </tr><tr><td>
           <p><code><a href="situas_get_report_data.html">situas_get_report_data()</a></code> </p>
         </td>
@@ -143,9 +70,113 @@
         </td>
         <td><p>Get SITUAS Report Metadata</p></td>
       </tr><tr><td>
+          <p><code><a href="situas_get_report_count.html">situas_get_report_count()</a></code> </p>
+        </td>
+        <td><p>Get SITUAS Report Row Count</p></td>
+      </tr></tbody><tbody><tr><th colspan="2">
+          <h2 id="report-discovery">Report discovery <a href="#report-discovery" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p><p>Functions for browsing, searching, and inspecting the catalogue of reports available through the SITUAS API.</p>
+        </th>
+      </tr></tbody><tbody><tr><td>
+          <p><code><a href="list_available_reports.html">list_available_reports()</a></code> </p>
+        </td>
+        <td><p>List All Available SITUAS Reports</p></td>
+      </tr><tr><td>
+          <p><code><a href="search_reports.html">search_reports()</a></code> </p>
+        </td>
+        <td><p>Search SITUAS Reports by Keywords</p></td>
+      </tr><tr><td>
+          <p><code><a href="scan_situas_reports.html">scan_situas_reports()</a></code> </p>
+        </td>
+        <td><p>Scan for Valid SITUAS Report IDs</p></td>
+      </tr><tr><td>
+          <p><code><a href="get_report_details.html">get_report_details()</a></code> </p>
+        </td>
+        <td><p>Get Report Details by ID</p></td>
+      </tr><tr><td>
+          <p><code><a href="list_report_categories.html">list_report_categories()</a></code> </p>
+        </td>
+        <td><p>List Reports by Category</p></td>
+      </tr></tbody><tbody><tr><th colspan="2">
+          <h2 id="classifications">Classifications <a href="#classifications" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p><p>Download territorial classification standards used to reclassify codes across time.</p>
+        </th>
+      </tr></tbody><tbody><tr><td>
+          <p><code><a href="download_classification_standards.html">download_classification_standards()</a></code> </p>
+        </td>
+        <td><p>Download Italian Labor Ministry Classification Standards</p></td>
+      </tr></tbody><tbody><tr><th colspan="2">
+          <h2 id="istat-boundaries">ISTAT boundaries <a href="#istat-boundaries" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p><p>Download and manage cached ISTAT administrative boundary shapefiles.</p>
+        </th>
+      </tr></tbody><tbody><tr><td>
+          <p><code><a href="download_istat_boundaries.html">download_istat_boundaries()</a></code> </p>
+        </td>
+        <td><p>Download ISTAT Administrative Boundary Shapefiles</p></td>
+      </tr><tr><td>
+          <p><code><a href="list_istat_boundary_versions.html">list_istat_boundary_versions()</a></code> </p>
+        </td>
+        <td><p>List Available ISTAT Boundary Versions</p></td>
+      </tr><tr><td>
+          <p><code><a href="check_boundary_updates.html">check_boundary_updates()</a></code> </p>
+        </td>
+        <td><p>Check for Boundary Updates</p></td>
+      </tr><tr><td>
+          <p><code><a href="get_cached_boundaries_info.html">get_cached_boundaries_info()</a></code> </p>
+        </td>
+        <td><p>Get Information About Cached Boundaries</p></td>
+      </tr><tr><td>
+          <p><code><a href="clean_boundary_cache.html">clean_boundary_cache()</a></code> </p>
+        </td>
+        <td><p>Clean Boundary Cache</p></td>
+      </tr></tbody><tbody><tr><th colspan="2">
+          <h2 id="territorial-mapping">Territorial mapping <a href="#territorial-mapping" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p><p>Prepare and render territorial maps at municipal (comuni) and other administrative levels, including static choropleths and interactive leaflet maps.</p>
+        </th>
+      </tr></tbody><tbody><tr><td>
+          <p><code><a href="prepare_comuni_maps.html">prepare_comuni_maps()</a></code> </p>
+        </td>
+        <td><p>Prepare Geographic Maps of Italian Territorial Units</p></td>
+      </tr><tr><td>
+          <p><code><a href="prepare_territorial_maps.html">prepare_territorial_maps()</a></code> </p>
+        </td>
+        <td><p>Prepare Geographic Maps of Italian Territorial Units</p></td>
+      </tr><tr><td>
+          <p><code><a href="map_comuni_leaflet.html">map_comuni_leaflet()</a></code> </p>
+        </td>
+        <td><p>Create Interactive Leaflet Map of Italian Municipalities</p></td>
+      </tr><tr><td>
+          <p><code><a href="map_comuni_choropleth.html">map_comuni_choropleth()</a></code> </p>
+        </td>
+        <td><p>Create Choropleth Map by Joining External Data</p></td>
+      </tr><tr><td>
+          <p><code><a href="map_territorial_units.html">map_territorial_units()</a></code> </p>
+        </td>
+        <td><p>Create Interactive Leaflet Map of Italian Territorial Units</p></td>
+      </tr><tr><td>
+          <p><code><a href="map_territorial_choropleth.html">map_territorial_choropleth()</a></code> </p>
+        </td>
+        <td><p>Create Choropleth Map by Joining External Data</p></td>
+      </tr></tbody><tbody><tr><th colspan="2">
+          <h2 id="export">Export <a href="#export" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p><p>Convert spatial data to formats suitable for external tools.</p>
+        </th>
+      </tr></tbody><tbody><tr><td>
+          <p><code><a href="sf_to_powerbi_topojson.html">sf_to_powerbi_topojson()</a></code> </p>
+        </td>
+        <td><p>Convert SF Object to Power BI-Compatible TopoJSON</p></td>
+      </tr></tbody><tbody><tr><th colspan="2">
+          <h2 id="metadata-management">Metadata management <a href="#metadata-management" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p><p>Maintain the internal report metadata table used to validate report IDs and determine report types.</p>
+        </th>
+      </tr></tbody><tbody><tr><td>
           <p><code><a href="update_reports_metadata.html">update_reports_metadata()</a></code> </p>
         </td>
         <td><p>Update SITUAS Reports Metadata from Excel File</p></td>
+      </tr><tr><td>
+          <p><code><a href="situas_reports_metadata.html">situas_reports_metadata</a></code> </p>
+        </td>
+        <td><p>SITUAS Reports Metadata (Internal)</p></td>
       </tr></tbody></table></div>
 
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
