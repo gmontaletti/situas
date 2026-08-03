@@ -23,19 +23,146 @@ test_that("get_territorial_code returns correct codes", {
   expect_error(get_territorial_code("invalid"), "Invalid territorial level")
 })
 
+test_that("get_ondata_division returns the API v2 division slugs", {
+  expect_equal(get_ondata_division("comuni"), "comuni")
+  expect_equal(
+    get_ondata_division("province"),
+    "unita-territoriali-sovracomunali"
+  )
+  expect_equal(get_ondata_division("regioni"), "regioni")
+  expect_equal(get_ondata_division("ripartizioni"), "ripartizioni-geografiche")
+
+  expect_error(get_ondata_division("invalid"), "Invalid territorial level")
+})
+
 test_that("format_boundary_date formats correctly", {
   expect_equal(format_boundary_date("2025-01-01"), "20250101")
   expect_equal(format_boundary_date(as.Date("2024-06-15")), "20240615")
 })
 
-test_that("build_ondata_url constructs correct URLs", {
+test_that("build_ondata_url constructs API v2 division URLs", {
   url <- build_ondata_url("2025-01-01", "comuni")
-  expect_match(url, "confini-amministrativi\\.it")
-  expect_match(url, "20250101")
-  expect_match(url, "Com_gen\\.zip$")
+  expect_equal(
+    url,
+    "https://www.confini-amministrativi.it/api/v2/it/20250101/comuni.zip"
+  )
 
+  # Province are addressed by division slug, not by the ISTAT short code
   url <- build_ondata_url("2024-01-01", "province")
-  expect_match(url, "ProvCM_gen\\.zip$")
+  expect_equal(
+    url,
+    paste0(
+      "https://www.confini-amministrativi.it/api/v2/it/20240101/",
+      "unita-territoriali-sovracomunali.zip"
+    )
+  )
+
+  # The pre-v2 "_gen" naming must not reappear
+  for (level in c("comuni", "province", "regioni", "ripartizioni")) {
+    expect_false(grepl("_gen\\.zip$", build_ondata_url("2026-01-01", level)))
+  }
+})
+
+test_that("build_ondata_url supports alternative formats", {
+  expect_match(
+    build_ondata_url("2026-01-01", "comuni", format = "geo.json"),
+    "comuni\\.geo\\.json$"
+  )
+  expect_match(
+    build_ondata_url("2026-01-01", "comuni", format = "gpkg"),
+    "comuni\\.gpkg$"
+  )
+  expect_error(build_ondata_url("2026-01-01", "comuni", format = "shp"))
+})
+
+test_that("build_istat_url builds archive URLs and rejects unserved dates", {
+  expect_equal(
+    build_istat_url("2026-01-01"),
+    paste0(
+      "https://www.istat.it/storage/cartografia/confini_amministrativi/",
+      "generalizzati/2026/Limiti01012026_g.zip"
+    )
+  )
+
+  expect_match(
+    build_istat_url("2025-01-01", generalized = FALSE),
+    "non_generalizzati/2025/Limiti01012025\\.zip$"
+  )
+
+  # ISTAT storage only serves January 1st releases from 2022 onwards
+  expect_null(build_istat_url("2021-01-01"))
+  expect_null(build_istat_url("2026-06-15"))
+})
+
+test_that("normalize_boundary_fields maps OnData names to ISTAT names", {
+  ondata <- data.frame(
+    pro_com = 1L,
+    cod_reg = 1L,
+    comune = "Agliè",
+    shape_area = 1.0,
+    ontopia = "x",
+    stringsAsFactors = FALSE
+  )
+
+  normalized <- normalize_boundary_fields(ondata)
+
+  expect_equal(
+    names(normalized),
+    c("PRO_COM", "COD_REG", "COMUNE", "Shape_Area", "ONTOPIA")
+  )
+})
+
+test_that("normalize_boundary_fields leaves ISTAT names unchanged", {
+  istat <- data.frame(
+    PRO_COM = 1L,
+    COD_REG = 1L,
+    COMUNE = "Agliè",
+    Shape_Area = 1.0,
+    stringsAsFactors = FALSE
+  )
+
+  expect_equal(names(normalize_boundary_fields(istat)), names(istat))
+
+  # Idempotent: normalising twice changes nothing
+  once <- normalize_boundary_fields(istat)
+  expect_equal(names(normalize_boundary_fields(once)), names(once))
+})
+
+test_that("normalize_boundary_fields preserves the geometry column", {
+  skip_if_not_installed("sf")
+
+  obj <- sf::st_sf(
+    pro_com = 1L,
+    geometry = sf::st_sfc(sf::st_point(c(9, 45)), crs = 4326)
+  )
+
+  normalized <- normalize_boundary_fields(obj)
+
+  expect_true(inherits(normalized, "sf"))
+  expect_true("PRO_COM" %in% names(normalized))
+  expect_true(attr(normalized, "sf_column") %in% names(normalized))
+})
+
+test_that("boundary_shp_pattern matches the archive layout of each source", {
+  ondata_names <- c("comuni.shp", "comuni.dbf", "comuni.prj")
+  expect_length(
+    grep(boundary_shp_pattern("comuni", "OnData"), ondata_names),
+    1
+  )
+
+  istat_names <- c(
+    "Com01012026_g/Com01012026_g_WGS84.shp",
+    "ProvCM01012026_g/ProvCM01012026_g_WGS84.shp",
+    "Reg01012026_g/Reg01012026_g_WGS84.shp"
+  )
+  expect_equal(
+    grep(boundary_shp_pattern("province", "ISTAT"), istat_names, value = TRUE),
+    "ProvCM01012026_g/ProvCM01012026_g_WGS84.shp"
+  )
+  expect_equal(
+    grep(boundary_shp_pattern("regioni", "ISTAT"), istat_names, value = TRUE),
+    "Reg01012026_g/Reg01012026_g_WGS84.shp"
+  )
 })
 
 # 2. list_istat_boundary_versions Tests -----
@@ -144,6 +271,164 @@ test_that("load_boundaries_metadata returns empty table if no file", {
   ))
 })
 
+# 3b. Extraction Tests -----
+
+# Builds a ZIP archive containing the given (possibly nested) relative paths,
+# so extraction can be tested without hitting the network.
+make_boundary_zip <- function(paths, dir) {
+  for (p in paths) {
+    full <- file.path(dir, p)
+    dir.create(dirname(full), recursive = TRUE, showWarnings = FALSE)
+    writeLines("fake", full)
+  }
+
+  withr::local_dir(dir)
+  utils::zip("archive.zip", files = paths, flags = "-q")
+
+  file.path(dir, "archive.zip")
+}
+
+test_that("extract_boundary_shapefile handles the OnData archive layout", {
+  skip_if(Sys.which(Sys.getenv("R_ZIPCMD", "zip")) == "", "zip binary missing")
+
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+
+  src_dir <- withr::local_tempdir()
+  zip_file <- make_boundary_zip(
+    c("comuni.shp", "comuni.shx", "comuni.dbf", "comuni.prj", "comuni.cpg"),
+    src_dir
+  )
+
+  result <- extract_boundary_shapefile(
+    zip_file,
+    date = "2026-01-01",
+    territorial_level = "comuni",
+    source = "OnData",
+    verbose = FALSE
+  )
+
+  expect_true(result$success)
+  expect_true(file.exists(result$shapefile))
+  expect_equal(basename(result$shapefile), "comuni.shp")
+
+  # Sidecar files must be extracted alongside the .shp
+  expect_true(file.exists(sub("\\.shp$", ".dbf", result$shapefile)))
+  expect_true(file.exists(sub("\\.shp$", ".prj", result$shapefile)))
+})
+
+test_that("extract_boundary_shapefile handles the nested ISTAT layout", {
+  skip_if(Sys.which(Sys.getenv("R_ZIPCMD", "zip")) == "", "zip binary missing")
+
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+
+  src_dir <- withr::local_tempdir()
+  zip_file <- make_boundary_zip(
+    c(
+      "Com01012026_g/Com01012026_g_WGS84.shp",
+      "Com01012026_g/Com01012026_g_WGS84.dbf",
+      "ProvCM01012026_g/ProvCM01012026_g_WGS84.shp",
+      "ProvCM01012026_g/ProvCM01012026_g_WGS84.dbf"
+    ),
+    src_dir
+  )
+
+  # The single ISTAT bundle must yield the right level for each request
+  comuni <- extract_boundary_shapefile(
+    zip_file,
+    date = "2026-01-01",
+    territorial_level = "comuni",
+    source = "ISTAT",
+    verbose = FALSE
+  )
+  expect_true(comuni$success)
+  expect_equal(basename(comuni$shapefile), "Com01012026_g_WGS84.shp")
+
+  province <- extract_boundary_shapefile(
+    zip_file,
+    date = "2026-01-01",
+    territorial_level = "province",
+    source = "ISTAT",
+    verbose = FALSE
+  )
+  expect_true(province$success)
+  expect_equal(basename(province$shapefile), "ProvCM01012026_g_WGS84.shp")
+})
+
+test_that("extract_boundary_shapefile reports a missing shapefile", {
+  skip_if(Sys.which(Sys.getenv("R_ZIPCMD", "zip")) == "", "zip binary missing")
+
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+
+  src_dir <- withr::local_tempdir()
+  zip_file <- make_boundary_zip(c("readme.txt"), src_dir)
+
+  result <- extract_boundary_shapefile(
+    zip_file,
+    date = "2026-01-01",
+    territorial_level = "comuni",
+    source = "OnData",
+    verbose = FALSE
+  )
+
+  expect_false(result$success)
+  expect_match(result$error, "No shapefile")
+})
+
+# 3c. Remote Endpoint Tests -----
+#
+# These tests assert that the URLs the package builds actually resolve. The
+# 404 regression that broke download_istat_boundaries() went unnoticed because
+# earlier tests only inspected the URL string.
+
+test_that("OnData download URLs resolve for every territorial level", {
+  skip_on_cran()
+  skip_if_offline()
+
+  latest <- fetch_ondata_releases(verbose = FALSE)
+  skip_if(is.null(latest), "OnData release index unreachable")
+
+  date <- as.Date(latest[1], format = "%Y%m%d")
+
+  for (level in c("comuni", "province", "regioni", "ripartizioni")) {
+    url <- build_ondata_url(date, level)
+    response <- httr::HEAD(url, httr::timeout(30))
+
+    expect_equal(
+      httr::status_code(response),
+      200L,
+      label = paste0("HEAD ", url)
+    )
+  }
+})
+
+test_that("ISTAT fallback URL resolves for the latest published year", {
+  skip_on_cran()
+  skip_if_offline()
+
+  url <- build_istat_url("2026-01-01")
+  response <- httr::HEAD(url, httr::timeout(30))
+
+  expect_equal(httr::status_code(response), 200L, label = paste0("HEAD ", url))
+})
+
+test_that("fetch_ondata_releases returns published release identifiers", {
+  skip_on_cran()
+  skip_if_offline()
+
+  releases <- fetch_ondata_releases(verbose = FALSE)
+  skip_if(is.null(releases), "OnData release index unreachable")
+
+  expect_type(releases, "character")
+  expect_true(all(grepl("^[0-9]{8}$", releases)))
+
+  # Descending order, and the series extends well before 2020
+  expect_identical(releases, sort(releases, decreasing = TRUE))
+  expect_true(any(as.integer(substr(releases, 1, 4)) < 2020))
+})
+
 # 4. download_istat_boundaries Tests -----
 
 test_that("download_istat_boundaries validates inputs", {
@@ -165,19 +450,98 @@ test_that("download_istat_boundaries validates inputs", {
   )
 })
 
-test_that("download_istat_boundaries defaults to current year", {
+test_that("download_istat_boundaries rejects an unknown source", {
+  expect_error(
+    download_istat_boundaries(source = "elsewhere"),
+    "'arg' should be one of"
+  )
+})
+
+test_that("download_istat_boundaries downloads from OnData", {
   skip_on_cran()
   skip_if_offline()
 
-  # This test actually downloads - only run if online
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+
+  releases <- fetch_ondata_releases(verbose = FALSE)
+  skip_if(is.null(releases), "OnData release index unreachable")
+
+  result <- download_istat_boundaries(
+    date = as.Date(releases[1], format = "%Y%m%d"),
+    territorial_levels = "ripartizioni",
+    source = "ondata",
+    verbose = FALSE
+  )
+
+  expect_s3_class(result, "data.table")
+  expect_equal(result$status, "success")
+  expect_equal(result$source, "OnData")
+  expect_true(file.exists(result$file_path))
+})
+
+test_that("download_istat_boundaries falls back to the ISTAT archive", {
+  skip_on_cran()
+  skip_if_offline()
+
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+
+  result <- download_istat_boundaries(
+    date = "2026-01-01",
+    territorial_levels = c("ripartizioni", "regioni"),
+    source = "istat",
+    verbose = FALSE
+  )
+
+  expect_equal(result$status, c("success", "success"))
+  expect_equal(unique(result$source), "ISTAT")
+  expect_true(all(file.exists(result$file_path)))
+
+  # The nested ISTAT layout is preserved on extraction
+  expect_match(result$file_path[1], "RipGeo01012026_g")
+})
+
+test_that("download_istat_boundaries defaults to the current year", {
+  skip_on_cran()
+  skip_if_offline()
+
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+
   result <- download_istat_boundaries(
     territorial_levels = "ripartizioni",
     verbose = FALSE
   )
 
   expect_s3_class(result, "data.table")
-  expect_true("territorial_level" %in% names(result))
-  expect_true("status" %in% names(result))
+  expect_true(all(
+    c("territorial_level", "status", "source", "file_path", "error") %in%
+      names(result)
+  ))
+  expect_equal(result$status, "success")
+})
+
+test_that("download_istat_boundaries reports available releases on 404", {
+  skip_on_cran()
+  skip_if_offline()
+
+  temp_dir <- withr::local_tempdir()
+  withr::local_envvar(c("R_USER_DATA_DIR" = temp_dir))
+
+  # A date with no published release: OnData 404s and ISTAT cannot serve it
+  expect_warning(
+    result <- download_istat_boundaries(
+      date = "2026-06-15",
+      territorial_levels = "ripartizioni",
+      verbose = TRUE
+    ),
+    "Failed to download"
+  )
+
+  expect_equal(result$status, "failed")
+  expect_match(result$error, "No boundary release published for 20260615")
+  expect_match(result$error, "list_istat_boundary_versions")
 })
 
 test_that("download_istat_boundaries uses cache correctly", {

@@ -1,6 +1,6 @@
 # situas - R Client for SITUAS API
 
-[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/gmontaletti/situas)
+[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/gmontaletti/situas)
 
 R package for accessing the SITUAS (Sistema Informativo Territoriale delle Unità Amministrative e Statistiche) API - a set of APIs built by ISTAT (Italian National Institute for Statistics) to retrieve territorial codes and classifications.
 
@@ -27,11 +27,17 @@ The package is structured as a standard R library with CRAN standards:
 
 ```r
 # Install from GitHub
-devtools::install_github("gmontaletti/situas")
+pak::pak("gmontaletti/situas")
+
+# Force a reinstall when pak reports the package as already up to date
+pak::pak("gmontaletti/situas?reinstall")
 
 # Restore package dependencies
 renv::restore()
 ```
+
+`devtools::install_github()` also works but is deprecated since devtools 2.5.0,
+which recommends `pak` instead.
 
 ## Quick Start
 
@@ -55,14 +61,20 @@ regioni <- get_situas_tables(pfun = 68, date = Sys.Date())
 The package provides functions to automatically download ISTAT administrative boundary shapefiles from the [OnData repository](https://www.confini-amministrativi.it) (with fallback to the [official ISTAT source](https://www.istat.it/it/archivio/222527)).
 
 ```r
-# Download all territorial levels for 2025
+# Download all territorial levels for the current release
 download_istat_boundaries()
 
 # Download specific territorial levels
 download_istat_boundaries(
-  date = "2025-01-01",
+  date = "2026-01-01",
   territorial_levels = c("comuni", "province")
 )
+
+# List the releases actually published (27 releases, from 1991 onwards)
+list_istat_boundary_versions(since_year = 2020)
+
+# Restrict the download to a single source
+download_istat_boundaries(date = "2026-01-01", source = "istat")
 
 # Check for updates
 check_boundary_updates()
@@ -75,8 +87,12 @@ clean_boundary_cache(keep_latest_n = 2)
 ```
 
 **Data Sources:**
-- Primary: [OnData repository](https://www.confini-amministrativi.it) - Community-maintained, easier access, multiple formats
-- Fallback: [ISTAT official](https://www.istat.it/it/archivio/222527) - Direct from ISTAT
+- Primary: [OnData repository](https://www.confini-amministrativi.it) - community-maintained, multiple formats, releases from 1991 onwards
+- Fallback: [ISTAT official](https://www.istat.it/it/archivio/222527) - January 1st releases from 2022 onwards, one bundle covering all territorial levels
+
+Attribute names differ between the two distributions (OnData ships lowercase
+names, ISTAT uppercase ones). They are normalised to the ISTAT convention on
+read, so `prepare_territorial_maps()` behaves identically regardless of source.
 
 **Cache Location:**
 Downloaded boundaries are cached in `tools::R_user_dir("situas", which = "data")` and persist across R sessions.
@@ -126,8 +142,8 @@ map_territorial_units(map_data)
 If you use this package in your research, please cite it as:
 
 ```
-Montaletti, G. (2025). situas: Client for the SITUAS API - Italian Territorial Codes and Classifications.
-R package version 0.5.0. https://github.com/gmontaletti/situas
+Montaletti, G. (2026). situas: Client for the SITUAS API - Italian Territorial Codes and Classifications.
+R package version 0.6.0. https://github.com/gmontaletti/situas
 ```
 
 ## Author

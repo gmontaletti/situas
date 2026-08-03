@@ -8,6 +8,7 @@ download_istat_boundaries(
   date = NULL,
   territorial_levels = c("comuni", "province", "regioni", "ripartizioni"),
   output_dir = NULL,
+  source = c("auto", "ondata", "istat"),
   force_refresh = FALSE,
   verbose = TRUE
 )
@@ -15,7 +16,7 @@ download_istat_boundaries(
 \arguments{
 \item{date}{Date for which to download boundaries. Can be a Date object or
 character string in "YYYY-MM-DD" format. Defaults to most recent January 1st.
-Available dates: January 1st of each year from 2020 to present.}
+Use \code{list_istat_boundary_versions()} for the list of published releases.}
 
 \item{territorial_levels}{Character vector of territorial levels to download.
 Options: "comuni", "province", "regioni", "ripartizioni".
@@ -23,6 +24,10 @@ Default is all levels.}
 
 \item{output_dir}{Directory where boundaries will be cached. Default uses
 \code{tools::R_user_dir("situas", which = "data")}.}
+
+\item{source}{Character. Which source to use: "auto" (default) tries OnData
+first and falls back to ISTAT, "ondata" and "istat" restrict the download
+to a single source.}
 
 \item{force_refresh}{Logical. If TRUE, re-downloads even if already cached.
 Default is FALSE.}
@@ -41,14 +46,24 @@ A data.table with download status for each territorial level, including:
 }
 \description{
 Downloads generalized boundary shapefiles for Italian administrative units
-from the OnData repository (with ISTAT fallback). Boundaries are cached
-locally for offline use.
+from the OnData repository, falling back to the ISTAT archive. Boundaries are
+cached locally for offline use.
 }
 \section{Data Source}{
 
 Primary source is the OnData repository (\url{https://www.confini-amministrativi.it}),
-which provides ISTAT boundaries in multiple formats with easier programmatic access.
-If OnData is unavailable, the function falls back to direct ISTAT downloads.
+which provides ISTAT boundaries in multiple formats with easier programmatic
+access and a longer historical series (releases from 1991 onwards). Bulk
+downloads are addressed as
+\code{/api/v2/it/{YYYYMMDD}/{division}.zip}.
+
+If OnData is unavailable, the function falls back to the ISTAT archive
+(\code{Limiti{DDMMYYYY}_g.zip}), which serves January 1st releases from 2022
+onwards as a single bundle covering all territorial levels.
+
+Attribute names differ between the two distributions (OnData ships lowercase
+names, ISTAT uppercase ones). They are normalised to the ISTAT convention on
+read, so downstream functions behave identically regardless of source.
 }
 
 \section{File Organization}{
@@ -56,17 +71,17 @@ If OnData is unavailable, the function falls back to direct ISTAT downloads.
 Downloaded boundaries are organized by date:
 \preformatted{
 {cache_dir}/boundaries/
-  ├── 20250101/
-  │   ├── Com_gen_WGS84.shp
-  │   ├── ProvCM_gen_WGS84.shp
-  │   └── ...
+  ├── 20260101/
+  │   ├── comuni.shp                                  # OnData
+  │   ├── unita-territoriali-sovracomunali.shp
+  │   └── Com01012026_g/Com01012026_g_WGS84.shp       # ISTAT fallback
   └── metadata.rds
 }
 }
 
 \examples{
 \dontrun{
-# Download all boundaries for 2025-01-01
+# Download all boundaries for the current release
 result <- download_istat_boundaries()
 
 # Download only municipalities for a specific date
@@ -77,6 +92,12 @@ result <- download_istat_boundaries(
 
 # Force re-download even if cached
 result <- download_istat_boundaries(force_refresh = TRUE)
+
+# Bypass OnData and use the ISTAT archive directly
+result <- download_istat_boundaries(
+  date = "2026-01-01",
+  source = "istat"
+)
 }
 
 }

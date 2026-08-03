@@ -59,6 +59,9 @@ save_boundaries_metadata <- function(metadata) {
 
 #' Get territorial level code
 #'
+#' Returns the ISTAT short code used in the official archive naming scheme
+#' (e.g. \code{Com01012026_g/Com01012026_g_WGS84.shp}).
+#'
 #' @keywords internal
 #' @noRd
 get_territorial_code <- function(level) {
@@ -80,6 +83,110 @@ get_territorial_code <- function(level) {
   }
 
   return(code)
+}
+
+#' Get OnData division name
+#'
+#' Returns the division slug used by the OnData API v2. The API addresses
+#' territorial levels by division name, not by ISTAT short code.
+#'
+#' @keywords internal
+#' @noRd
+get_ondata_division <- function(level) {
+  divisions <- list(
+    comuni = "comuni",
+    province = "unita-territoriali-sovracomunali",
+    regioni = "regioni",
+    ripartizioni = "ripartizioni-geografiche"
+  )
+
+  division <- divisions[[level]]
+  if (is.null(division)) {
+    stop(
+      "Invalid territorial level: ",
+      level,
+      ". Valid options: ",
+      paste(names(divisions), collapse = ", ")
+    )
+  }
+
+  return(division)
+}
+
+#' Canonical ISTAT boundary attribute names
+#'
+#' @keywords internal
+#' @noRd
+istat_boundary_fields <- function() {
+  c(
+    "OBJECTID",
+    "COD_RIP",
+    "COD_REG",
+    "COD_PROV",
+    "COD_CM",
+    "COD_UTS",
+    "PRO_COM",
+    "PRO_COM_T",
+    "COMUNE",
+    "COMUNE_A",
+    "CC_UTS",
+    "DEN_PROV",
+    "DEN_CM",
+    "DEN_UTS",
+    "DEN_REG",
+    "DEN_RIP",
+    "SIGLA",
+    "TIPO_UTS",
+    "Shape_Leng",
+    "Shape_Le_1",
+    "Shape_Area"
+  )
+}
+
+#' Normalise boundary attribute names to the ISTAT convention
+#'
+#' The OnData distribution ships lowercase attribute names (\code{pro_com},
+#' \code{cod_reg}, ...) while the ISTAT distribution uses the uppercase form
+#' (\code{PRO_COM}, \code{COD_REG}, ...). Downstream functions such as
+#' \code{prepare_territorial_maps()} join on the ISTAT names, so attributes are
+#' normalised at read time regardless of the source.
+#'
+#' Names matching a canonical ISTAT field (case-insensitively) are replaced by
+#' the canonical spelling; any other attribute is uppercased. The geometry
+#' column is left untouched. The transformation is idempotent.
+#'
+#' @param x An \code{sf} object or a data.frame.
+#'
+#' @return The object with normalised attribute names.
+#'
+#' @keywords internal
+#' @noRd
+normalize_boundary_fields <- function(x) {
+  nms <- names(x)
+  if (is.null(nms) || length(nms) == 0) {
+    return(x)
+  }
+
+  lookup <- istat_boundary_fields()
+  names(lookup) <- tolower(lookup)
+
+  geom_col <- attr(x, "sf_column")
+
+  new_nms <- vapply(
+    nms,
+    function(nm) {
+      if (!is.null(geom_col) && identical(nm, geom_col)) {
+        return(nm)
+      }
+      hit <- unname(lookup[tolower(nm)])
+      if (is.na(hit)) toupper(nm) else hit
+    },
+    character(1),
+    USE.NAMES = FALSE
+  )
+
+  names(x) <- new_nms
+  return(x)
 }
 
 #' Format date for ISTAT boundaries
@@ -107,20 +214,125 @@ format_filename_date <- function(date) {
 
 # 2. OnData API Functions -----
 
-#' Build OnData download URL
+#' Base URL of the OnData API v2
 #'
 #' @keywords internal
 #' @noRd
-build_ondata_url <- function(date, territorial_level) {
-  base_url <- "https://www.confini-amministrativi.it/api/v2/it"
+ondata_base_url <- function() {
+  "https://www.confini-amministrativi.it/api/v2/it"
+}
+
+#' User agent string used for all HTTP requests
+#'
+#' @keywords internal
+#' @noRd
+situas_user_agent <- function() {
+  "situas R package (https://github.com/gmontaletti/situas)"
+}
+
+#' Build OnData download URL
+#'
+#' The OnData API v2 addresses bulk downloads as
+#' \code{/api/v2/it/{YYYYMMDD}/{division}.{format}}, where \code{division} is
+#' the division slug (see \code{get_ondata_division()}), not the ISTAT short
+#' code.
+#'
+#' @param date Date or character. Release date.
+#' @param territorial_level Character. One of "comuni", "province", "regioni",
+#'   "ripartizioni".
+#' @param format Character. Distribution format. "zip" returns the shapefile
+#'   bundle.
+#'
+#' @keywords internal
+#' @noRd
+build_ondata_url <- function(date, territorial_level, format = "zip") {
+  format <- match.arg(
+    format,
+    c("zip", "geo.json", "topo.json", "gpkg", "geo.parquet", "csv")
+  )
+
   date_str <- format_boundary_date(date)
-  code <- get_territorial_code(territorial_level)
+  division <- get_ondata_division(territorial_level)
 
-  # OnData uses generalized suffix "_gen"
-  filename <- paste0(code, "_gen.zip")
+  paste0(ondata_base_url(), "/", date_str, "/", division, ".", format)
+}
 
-  url <- file.path(base_url, date_str, filename)
-  return(url)
+#' Build OnData index URL
+#'
+#' @keywords internal
+#' @noRd
+build_ondata_index_url <- function(date = NULL) {
+  if (is.null(date)) {
+    paste0(ondata_base_url(), "/index.json")
+  } else {
+    paste0(ondata_base_url(), "/", format_boundary_date(date), "/index.json")
+  }
+}
+
+#' Fetch the list of published releases from the OnData index
+#'
+#' Reads the HAL index published by OnData and returns the release identifiers
+#' actually available, in descending order. Returns NULL when the index cannot
+#' be reached or parsed, so callers can decide how to degrade.
+#'
+#' @keywords internal
+#' @noRd
+fetch_ondata_releases <- function(verbose = TRUE) {
+  url <- build_ondata_index_url()
+
+  response <- tryCatch(
+    httr::GET(
+      url,
+      httr::user_agent(situas_user_agent()),
+      httr::timeout(30)
+    ),
+    error = function(e) NULL
+  )
+
+  if (is.null(response) || httr::status_code(response) != 200) {
+    if (verbose) {
+      message("Could not read the OnData release index at ", url)
+    }
+    return(NULL)
+  }
+
+  parsed <- tryCatch(
+    jsonlite::fromJSON(
+      httr::content(response, as = "text", encoding = "UTF-8"),
+      simplifyVector = FALSE
+    ),
+    error = function(e) NULL
+  )
+
+  items <- parsed[["_links"]][["item"]]
+  if (is.null(items) || length(items) == 0) {
+    if (verbose) {
+      message("The OnData release index returned no entries")
+    }
+    return(NULL)
+  }
+
+  releases <- vapply(
+    items,
+    function(item) as.character(item[["name"]]),
+    character(1)
+  )
+  releases <- releases[grepl("^[0-9]{8}$", releases)]
+
+  if (length(releases) == 0) {
+    return(NULL)
+  }
+
+  sort(unique(releases), decreasing = TRUE)
+}
+
+#' Fallback release list used when the OnData index is unreachable
+#'
+#' @keywords internal
+#' @noRd
+fallback_ondata_releases <- function() {
+  current_year <- as.integer(format(Sys.Date(), "%Y"))
+  sort(paste0(2020:current_year, "0101"), decreasing = TRUE)
 }
 
 #' List available boundary versions from OnData
@@ -132,48 +344,96 @@ list_ondata_versions <- function(since_year = 2020, verbose = TRUE) {
     message("Querying OnData repository for available boundary versions...")
   }
 
-  # OnData provides boundaries on January 1st of each year
-  current_year <- as.integer(format(Sys.Date(), "%Y"))
-  years <- since_year:current_year
+  releases <- fetch_ondata_releases(verbose = verbose)
 
-  # Build list of potential dates (January 1st of each year)
-  dates <- paste0(years, "0101")
+  if (is.null(releases)) {
+    warning(
+      "Could not read the OnData release index; ",
+      "falling back to the list of expected annual releases.",
+      call. = FALSE
+    )
+    releases <- fallback_ondata_releases()
+  }
 
-  # Create data.table of available versions
-  # We assume these are available without checking each URL
-  # (could enhance with actual HEAD requests to verify)
   versions <- data.table::data.table(
-    date = dates,
-    year = years,
+    date = releases,
+    year = as.integer(substr(releases, 1, 4)),
     source = "OnData",
-    base_url = "https://www.confini-amministrativi.it/api/v2/it"
+    base_url = ondata_base_url()
   )
 
-  data.table::setorder(versions, -year)
+  versions <- versions[year >= since_year]
+  data.table::setorder(versions, -date)
 
   return(versions)
 }
 
 # 3. ISTAT Fallback Functions -----
 
-#' Build ISTAT download URL
+#' Base URL of the ISTAT boundary archive
 #'
 #' @keywords internal
 #' @noRd
-build_istat_url <- function(date) {
-  # ISTAT naming pattern: Limiti01012025_g.zip
+istat_base_url <- function() {
+  "https://www.istat.it/storage/cartografia/confini_amministrativi"
+}
+
+#' Earliest year served by the ISTAT storage archive
+#'
+#' @keywords internal
+#' @noRd
+istat_min_year <- function() {
+  2022L
+}
+
+#' Build ISTAT download URL
+#'
+#' ISTAT publishes a single bundle per reference date containing all four
+#' territorial levels, named \code{Limiti{DDMMYYYY}_g.zip} (generalized) or
+#' \code{Limiti{DDMMYYYY}.zip} (non generalized).
+#'
+#' Only January 1st releases from \code{istat_min_year()} onwards are served by
+#' the storage endpoint; the function returns NULL for any other date so that
+#' callers can skip the ISTAT attempt.
+#'
+#' @param date Date or character. Reference date.
+#' @param generalized Logical. Use the generalized geometries? Default TRUE,
+#'   matching the OnData distribution.
+#'
+#' @return A character URL, or NULL when ISTAT cannot serve the requested date.
+#'
+#' @keywords internal
+#' @noRd
+build_istat_url <- function(date, generalized = TRUE) {
   date_obj <- as.Date(date)
+  year <- as.integer(format(date_obj, "%Y"))
+
+  # ISTAT storage only exposes January 1st releases, from 2022 onwards
+  if (format(date_obj, "%m%d") != "0101" || year < istat_min_year()) {
+    return(NULL)
+  }
+
   date_str <- format_filename_date(date_obj)
 
-  filename <- paste0("Limiti", date_str, "_g.zip")
-
-  # Note: This is a placeholder. Actual ISTAT URLs would need to be scraped
-  # from https://www.istat.it/it/archivio/222527
-  warning(
-    "ISTAT direct download not yet implemented. Using OnData as primary source."
-  )
-
-  return(NULL)
+  if (generalized) {
+    paste0(
+      istat_base_url(),
+      "/generalizzati/",
+      year,
+      "/Limiti",
+      date_str,
+      "_g.zip"
+    )
+  } else {
+    paste0(
+      istat_base_url(),
+      "/non_generalizzati/",
+      year,
+      "/Limiti",
+      date_str,
+      ".zip"
+    )
+  }
 }
 
 # 4. Download Functions -----
@@ -187,15 +447,24 @@ download_boundary_file <- function(url, dest_file, verbose = TRUE) {
     message("Downloading from: ", url)
   }
 
-  # Download with progress bar
-  response <- httr::GET(
+  # Show a progress bar only when the caller asked for progress messages
+  request_args <- list(
     url,
-    httr::user_agent(
-      "situas R package (https://github.com/gmontaletti/situas)"
-    ),
-    httr::progress(),
+    httr::user_agent(situas_user_agent()),
     httr::write_disk(dest_file, overwrite = TRUE)
   )
+  if (verbose) {
+    request_args <- c(request_args, list(httr::progress()))
+  }
+
+  response <- tryCatch(
+    do.call(httr::GET, request_args),
+    error = function(e) e
+  )
+
+  if (inherits(response, "error")) {
+    return(list(success = FALSE, error = conditionMessage(response)))
+  }
 
   # Check if successful
   if (httr::status_code(response) != 200) {
@@ -230,7 +499,37 @@ is_valid_zip <- function(file) {
   )
 }
 
+#' Build the regex matching the shapefile of a territorial level inside a ZIP
+#'
+#' The two supported sources ship different archive layouts:
+#' \itemize{
+#'   \item OnData: one archive per division, shapefile at the root
+#'     (\code{comuni.shp}, \code{unita-territoriali-sovracomunali.shp}, ...)
+#'   \item ISTAT: one bundle for all levels, shapefile inside a per-level
+#'     directory (\code{Com01012026_g/Com01012026_g_WGS84.shp})
+#' }
+#'
+#' @keywords internal
+#' @noRd
+boundary_shp_pattern <- function(territorial_level, source = "OnData") {
+  if (identical(source, "ISTAT")) {
+    paste0(
+      "(^|/)",
+      get_territorial_code(territorial_level),
+      "[0-9]{8}_g/[^/]*\\.shp$"
+    )
+  } else {
+    paste0("(^|/)", get_ondata_division(territorial_level), "\\.shp$")
+  }
+}
+
 #' Extract shapefile from ZIP
+#'
+#' @param zip_file Path to the downloaded archive.
+#' @param date Date or character. Reference date, used to build the cache path.
+#' @param territorial_level Character. Territorial level to extract.
+#' @param source Character. "OnData" or "ISTAT"; selects the archive layout.
+#' @param verbose Logical. Print progress messages?
 #'
 #' @keywords internal
 #' @noRd
@@ -238,6 +537,7 @@ extract_boundary_shapefile <- function(
   zip_file,
   date,
   territorial_level,
+  source = "OnData",
   verbose = TRUE
 ) {
   # Create extraction directory
@@ -256,12 +556,8 @@ extract_boundary_shapefile <- function(
   # List contents
   zip_contents <- utils::unzip(zip_file, list = TRUE)
 
-  # Find shapefile components (.shp, .shx, .dbf, .prj, .cpg)
-  code <- get_territorial_code(territorial_level)
-
-  # OnData naming: Com_gen_WGS84.shp (for comuni)
-  # We need to find files that match the pattern
-  shp_pattern <- paste0(code, ".*\\.shp$")
+  # Locate the shapefile for this territorial level
+  shp_pattern <- boundary_shp_pattern(territorial_level, source)
   shp_files <- grep(
     shp_pattern,
     zip_contents$Name,
@@ -270,20 +566,22 @@ extract_boundary_shapefile <- function(
   )
 
   if (length(shp_files) == 0) {
-    return(list(success = FALSE, error = "No shapefile found in ZIP archive"))
+    return(list(
+      success = FALSE,
+      error = paste0(
+        "No shapefile matching '",
+        shp_pattern,
+        "' found in ZIP archive"
+      )
+    ))
   }
 
-  # Get base name (without extension)
+  # All sidecar files share the shapefile stem (.shx, .dbf, .prj, .cpg, ...)
   shp_file <- shp_files[1]
-  base_name <- sub("\\.shp$", "", basename(shp_file), ignore.case = TRUE)
-
-  # Find all related files
-  related_files <- grep(
-    base_name,
-    zip_contents$Name,
-    value = TRUE,
-    fixed = TRUE
-  )
+  stem <- sub("\\.[^.]*$", "", shp_file)
+  related_files <- zip_contents$Name[
+    sub("\\.[^.]*$", "", zip_contents$Name) == stem
+  ]
 
   # Extract all related files
   utils::unzip(
@@ -293,8 +591,8 @@ extract_boundary_shapefile <- function(
     overwrite = TRUE
   )
 
-  # Return path to main .shp file
-  shp_path <- file.path(extract_dir, basename(shp_file))
+  # Archive paths are preserved on extraction (ISTAT nests one level deep)
+  shp_path <- file.path(extract_dir, shp_file)
 
   if (!file.exists(shp_path)) {
     return(list(success = FALSE, error = "Shapefile extraction failed"))
@@ -308,17 +606,20 @@ extract_boundary_shapefile <- function(
 #' Download ISTAT Administrative Boundary Shapefiles
 #'
 #' Downloads generalized boundary shapefiles for Italian administrative units
-#' from the OnData repository (with ISTAT fallback). Boundaries are cached
-#' locally for offline use.
+#' from the OnData repository, falling back to the ISTAT archive. Boundaries are
+#' cached locally for offline use.
 #'
 #' @param date Date for which to download boundaries. Can be a Date object or
 #'   character string in "YYYY-MM-DD" format. Defaults to most recent January 1st.
-#'   Available dates: January 1st of each year from 2020 to present.
+#'   Use \code{list_istat_boundary_versions()} for the list of published releases.
 #' @param territorial_levels Character vector of territorial levels to download.
 #'   Options: "comuni", "province", "regioni", "ripartizioni".
 #'   Default is all levels.
 #' @param output_dir Directory where boundaries will be cached. Default uses
 #'   \code{tools::R_user_dir("situas", which = "data")}.
+#' @param source Character. Which source to use: "auto" (default) tries OnData
+#'   first and falls back to ISTAT, "ondata" and "istat" restrict the download
+#'   to a single source.
 #' @param force_refresh Logical. If TRUE, re-downloads even if already cached.
 #'   Default is FALSE.
 #' @param verbose Logical. Print progress messages? Default is TRUE.
@@ -334,23 +635,33 @@ extract_boundary_shapefile <- function(
 #'
 #' @section Data Source:
 #' Primary source is the OnData repository (\url{https://www.confini-amministrativi.it}),
-#' which provides ISTAT boundaries in multiple formats with easier programmatic access.
-#' If OnData is unavailable, the function falls back to direct ISTAT downloads.
+#' which provides ISTAT boundaries in multiple formats with easier programmatic
+#' access and a longer historical series (releases from 1991 onwards). Bulk
+#' downloads are addressed as
+#' \code{/api/v2/it/{YYYYMMDD}/{division}.zip}.
+#'
+#' If OnData is unavailable, the function falls back to the ISTAT archive
+#' (\code{Limiti{DDMMYYYY}_g.zip}), which serves January 1st releases from 2022
+#' onwards as a single bundle covering all territorial levels.
+#'
+#' Attribute names differ between the two distributions (OnData ships lowercase
+#' names, ISTAT uppercase ones). They are normalised to the ISTAT convention on
+#' read, so downstream functions behave identically regardless of source.
 #'
 #' @section File Organization:
 #' Downloaded boundaries are organized by date:
 #' \preformatted{
 #' {cache_dir}/boundaries/
-#'   ├── 20250101/
-#'   │   ├── Com_gen_WGS84.shp
-#'   │   ├── ProvCM_gen_WGS84.shp
-#'   │   └── ...
+#'   ├── 20260101/
+#'   │   ├── comuni.shp                                  # OnData
+#'   │   ├── unita-territoriali-sovracomunali.shp
+#'   │   └── Com01012026_g/Com01012026_g_WGS84.shp       # ISTAT fallback
 #'   └── metadata.rds
 #' }
 #'
 #' @examples
 #' \dontrun{
-#' # Download all boundaries for 2025-01-01
+#' # Download all boundaries for the current release
 #' result <- download_istat_boundaries()
 #'
 #' # Download only municipalities for a specific date
@@ -361,6 +672,12 @@ extract_boundary_shapefile <- function(
 #'
 #' # Force re-download even if cached
 #' result <- download_istat_boundaries(force_refresh = TRUE)
+#'
+#' # Bypass OnData and use the ISTAT archive directly
+#' result <- download_istat_boundaries(
+#'   date = "2026-01-01",
+#'   source = "istat"
+#' )
 #' }
 #'
 #' @seealso
@@ -373,6 +690,7 @@ download_istat_boundaries <- function(
   date = NULL,
   territorial_levels = c("comuni", "province", "regioni", "ripartizioni"),
   output_dir = NULL,
+  source = c("auto", "ondata", "istat"),
   force_refresh = FALSE,
   verbose = TRUE
 ) {
@@ -381,6 +699,8 @@ download_istat_boundaries <- function(
     is.logical(force_refresh),
     is.logical(verbose)
   )
+
+  source <- match.arg(source)
 
   # Default to most recent January 1st
   if (is.null(date)) {
@@ -419,6 +739,27 @@ download_istat_boundaries <- function(
     error = character()
   )
 
+  # Sources are tried in order; the ISTAT bundle covers all levels, so it is
+  # downloaded at most once per call and reused across the loop
+  attempt_sources <- switch(
+    source,
+    auto = c("OnData", "ISTAT"),
+    ondata = "OnData",
+    istat = "ISTAT"
+  )
+
+  istat_bundle <- NULL
+  release_hint <- NULL
+
+  on.exit(
+    {
+      if (!is.null(istat_bundle)) {
+        unlink(istat_bundle)
+      }
+    },
+    add = TRUE
+  )
+
   for (level in territorial_levels) {
     if (verbose) {
       message("\n--- Processing territorial level: ", level, " ---")
@@ -448,83 +789,152 @@ download_istat_boundaries <- function(
       }
     }
 
-    # Try downloading from OnData
-    url <- build_ondata_url(date, level)
-    temp_zip <- tempfile(fileext = ".zip")
+    # Try each source in turn until one yields a usable shapefile
+    outcome <- NULL
+    errors <- character(0)
 
-    download_result <- download_boundary_file(url, temp_zip, verbose)
+    for (src in attempt_sources) {
+      if (identical(src, "OnData")) {
+        url <- build_ondata_url(date, level)
+        zip_path <- tempfile(fileext = ".zip")
 
-    if (download_result$success) {
-      # Extract shapefile
-      extract_result <- extract_boundary_shapefile(
-        temp_zip,
-        date,
-        level,
-        verbose
-      )
+        download_result <- download_boundary_file(url, zip_path, verbose)
 
-      if (extract_result$success) {
-        # Update metadata
-        file_size <- file.info(extract_result$shapefile)$size / 1024^2 # MB
-
-        new_entry <- data.table::data.table(
-          date = date_str,
-          territorial_level = level,
-          source = "OnData",
-          file_path = extract_result$shapefile,
-          download_timestamp = Sys.time(),
-          file_size_mb = round(file_size, 2)
-        )
-
-        # Remove old entry if exists
-        metadata <- metadata[!(date == date_str & territorial_level == level)]
-        metadata <- data.table::rbindlist(list(metadata, new_entry))
-        save_boundaries_metadata(metadata)
-
-        results <- data.table::rbindlist(list(
-          results,
-          data.table::data.table(
-            territorial_level = level,
-            status = "success",
-            source = "OnData",
-            file_path = extract_result$shapefile,
-            error = NA_character_
-          )
-        ))
-
-        if (verbose) {
-          message("Successfully downloaded and extracted: ", level)
+        if (!download_result$success) {
+          errors <- c(errors, paste0("OnData: ", download_result$error))
+          unlink(zip_path)
+          next
         }
       } else {
-        results <- data.table::rbindlist(list(
-          results,
-          data.table::data.table(
-            territorial_level = level,
-            status = "failed",
-            source = "OnData",
-            file_path = NA_character_,
-            error = extract_result$error
+        url <- build_istat_url(date)
+
+        if (is.null(url)) {
+          errors <- c(
+            errors,
+            paste0(
+              "ISTAT: no direct download for ",
+              date_str,
+              " (January 1st releases from ",
+              istat_min_year(),
+              " onwards only)"
+            )
           )
-        ))
+          next
+        }
+
+        # The ISTAT bundle contains every level: download it only once
+        if (is.null(istat_bundle)) {
+          bundle_path <- tempfile(fileext = ".zip")
+          download_result <- download_boundary_file(url, bundle_path, verbose)
+
+          if (!download_result$success) {
+            errors <- c(errors, paste0("ISTAT: ", download_result$error))
+            unlink(bundle_path)
+            next
+          }
+
+          istat_bundle <- bundle_path
+        }
+
+        zip_path <- istat_bundle
       }
 
-      # Clean up temp file
-      unlink(temp_zip)
+      extract_result <- extract_boundary_shapefile(
+        zip_path,
+        date,
+        level,
+        source = src,
+        verbose = verbose
+      )
+
+      # The OnData archive is per-level and no longer needed once extracted
+      if (identical(src, "OnData")) {
+        unlink(zip_path)
+      }
+
+      if (!extract_result$success) {
+        errors <- c(errors, paste0(src, ": ", extract_result$error))
+        next
+      }
+
+      outcome <- list(source = src, shapefile = extract_result$shapefile)
+      break
+    }
+
+    if (!is.null(outcome)) {
+      # Update metadata
+      file_size <- file.info(outcome$shapefile)$size / 1024^2 # MB
+
+      new_entry <- data.table::data.table(
+        date = date_str,
+        territorial_level = level,
+        source = outcome$source,
+        file_path = outcome$shapefile,
+        download_timestamp = Sys.time(),
+        file_size_mb = round(file_size, 2)
+      )
+
+      # Remove old entry if exists
+      metadata <- metadata[!(date == date_str & territorial_level == level)]
+      metadata <- data.table::rbindlist(list(metadata, new_entry))
+      save_boundaries_metadata(metadata)
+
+      results <- data.table::rbindlist(list(
+        results,
+        data.table::data.table(
+          territorial_level = level,
+          status = "success",
+          source = outcome$source,
+          file_path = outcome$shapefile,
+          error = NA_character_
+        )
+      ))
+
+      if (verbose) {
+        message(
+          "Successfully downloaded and extracted: ",
+          level,
+          " (source: ",
+          outcome$source,
+          ")"
+        )
+      }
     } else {
-      # Try ISTAT fallback (not yet implemented)
+      error_msg <- paste(errors, collapse = "; ")
+
+      # A 404 usually means the release itself does not exist: say which do
+      if (any(grepl("404", errors, fixed = TRUE))) {
+        if (is.null(release_hint)) {
+          release_hint <- fetch_ondata_releases(verbose = FALSE)
+        }
+
+        if (!is.null(release_hint) && !date_str %in% release_hint) {
+          shown <- release_hint[seq_len(min(8, length(release_hint)))]
+          error_msg <- paste0(
+            error_msg,
+            ". No boundary release published for ",
+            date_str,
+            "; most recent available: ",
+            paste(shown, collapse = ", "),
+            if (length(release_hint) > length(shown)) ", ..." else "",
+            ". See list_istat_boundary_versions() for the full list"
+          )
+        }
+      }
+
       results <- data.table::rbindlist(list(
         results,
         data.table::data.table(
           territorial_level = level,
           status = "failed",
-          source = "OnData",
+          source = paste(attempt_sources, collapse = "/"),
           file_path = NA_character_,
-          error = download_result$error
+          error = error_msg
         )
       ))
 
       if (verbose) {
-        warning("Failed to download ", level, ": ", download_result$error)
+        warning("Failed to download ", level, ": ", error_msg)
       }
     }
   }
@@ -539,8 +949,13 @@ download_istat_boundaries <- function(
 
 #' List Available ISTAT Boundary Versions
 #'
-#' Query available boundary shapefile versions from the OnData repository.
-#' Results are cached for 24 hours to reduce API calls.
+#' Query available boundary shapefile versions from the OnData repository. The
+#' list is read from the repository index, so it reflects the releases actually
+#' published (the series starts in 1991 and not every release falls on
+#' January 1st). Results are cached for 24 hours to reduce API calls.
+#'
+#' If the index cannot be reached, the function warns and returns the expected
+#' annual releases from 2020 onwards as a fallback.
 #'
 #' @param since_year Integer. Show versions from this year onwards. Default is 2020.
 #' @param use_cache Logical. Use cached version list if available? Default is TRUE.
@@ -645,9 +1060,9 @@ list_istat_boundary_versions <- function(
 #'
 #' @export
 check_boundary_updates <- function(verbose = TRUE) {
-  # Get available versions
+  # Get available versions (ordered by date, most recent first)
   available <- list_istat_boundary_versions(verbose = FALSE)
-  latest_date <- available$date[1] # Most recent
+  latest_date <- available$date[1]
 
   # Get cached boundaries
   metadata <- load_boundaries_metadata()

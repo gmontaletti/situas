@@ -169,37 +169,46 @@
 #' reports <- search_reports()
 #' print(reports[, .(pfun, title, analysis_type)])
 #' }
-prepare_territorial_maps <- function(situas_data = NULL,
-                                      pfun = NULL,
-                                      territorial_level = "comuni",
-                                      output_dir = "data",
-                                      date = Sys.Date(),
-                                      simplify = TRUE,
-                                      tolerance = 0.001,
-                                      keep_attributes = NULL,
-                                      verbose = TRUE) {
+prepare_territorial_maps <- function(
+  situas_data = NULL,
+  pfun = NULL,
+  territorial_level = "comuni",
+  output_dir = "data",
+  date = Sys.Date(),
+  simplify = TRUE,
+  tolerance = 0.001,
+  keep_attributes = NULL,
+  verbose = TRUE
+) {
   # 1. Input validation -----
 
   # Validate basic parameters first (before using them)
   stopifnot(
-    "territorial_level must be a character string" =
-      is.character(territorial_level) && length(territorial_level) == 1,
-    "output_dir must be a character string" =
-      is.character(output_dir) && length(output_dir) == 1,
-    "simplify must be non-NA logical" =
-      is.logical(simplify) && length(simplify) == 1 && !is.na(simplify),
-    "tolerance must be positive numeric" =
-      is.numeric(tolerance) && length(tolerance) == 1 && tolerance > 0,
-    "verbose must be logical" =
-      is.logical(verbose) && length(verbose) == 1 && !is.na(verbose)
+    "territorial_level must be a character string" = is.character(
+      territorial_level
+    ) &&
+      length(territorial_level) == 1,
+    "output_dir must be a character string" = is.character(output_dir) &&
+      length(output_dir) == 1,
+    "simplify must be non-NA logical" = is.logical(simplify) &&
+      length(simplify) == 1 &&
+      !is.na(simplify),
+    "tolerance must be positive numeric" = is.numeric(tolerance) &&
+      length(tolerance) == 1 &&
+      tolerance > 0,
+    "verbose must be logical" = is.logical(verbose) &&
+      length(verbose) == 1 &&
+      !is.na(verbose)
   )
 
   # Validate territorial_level
   valid_levels <- c("comuni", "province", "regioni", "ripartizioni")
   if (!territorial_level %in% valid_levels) {
     stop(
-      "territorial_level must be one of: ", paste(valid_levels, collapse = ", "),
-      "\nYou provided: ", territorial_level,
+      "territorial_level must be one of: ",
+      paste(valid_levels, collapse = ", "),
+      "\nYou provided: ",
+      territorial_level,
       call. = FALSE
     )
   }
@@ -210,13 +219,17 @@ prepare_territorial_maps <- function(situas_data = NULL,
   # Validate situas_data parameter
   if (!is.null(situas_data)) {
     stopifnot(
-      "situas_data must be a data.frame or data.table" =
-        is.data.frame(situas_data)
+      "situas_data must be a data.frame or data.table" = is.data.frame(
+        situas_data
+      )
     )
     if (!join_field %in% names(situas_data)) {
       stop(
-        "situas_data must contain a '", join_field, "' column for joining with ",
-        territorial_level, " shapefile",
+        "situas_data must contain a '",
+        join_field,
+        "' column for joining with ",
+        territorial_level,
+        " shapefile",
         call. = FALSE
       )
     }
@@ -231,23 +244,29 @@ prepare_territorial_maps <- function(situas_data = NULL,
       pfun <- get_default_pfun(territorial_level)
       if (verbose) {
         message(
-          "No situas_data or pfun provided. Defaulting to pfun = ", pfun,
-          " (", territorial_level, ")"
+          "No situas_data or pfun provided. Defaulting to pfun = ",
+          pfun,
+          " (",
+          territorial_level,
+          ")"
         )
       }
     }
   }
 
   if (!is.null(keep_attributes)) {
-    stopifnot("keep_attributes must be character vector" = is.character(keep_attributes))
+    stopifnot(
+      "keep_attributes must be character vector" = is.character(keep_attributes)
+    )
   }
 
   # Validate pfun if provided (needed for file naming even with custom data)
   report_info <- NULL
   if (!is.null(pfun)) {
     stopifnot(
-      "pfun must be a single integer" =
-        is.numeric(pfun) && length(pfun) == 1 && pfun == as.integer(pfun)
+      "pfun must be a single integer" = is.numeric(pfun) &&
+        length(pfun) == 1 &&
+        pfun == as.integer(pfun)
     )
 
     pfun <- as.integer(pfun)
@@ -255,7 +274,9 @@ prepare_territorial_maps <- function(situas_data = NULL,
 
     if (nrow(report_info) == 0 && download_data) {
       warning(
-        "Report ID ", pfun, " is not in the list of known SITUAS reports.\n",
+        "Report ID ",
+        pfun,
+        " is not in the list of known SITUAS reports.\n",
         "Use search_reports() to see available reports.\n",
         "Proceeding anyway...",
         call. = FALSE
@@ -300,7 +321,11 @@ prepare_territorial_maps <- function(situas_data = NULL,
       message("  Report: ", report_info$title[1])
     }
 
-    situas_data <- get_situas_tables(pfun = pfun, date = date, verbose = verbose)
+    situas_data <- get_situas_tables(
+      pfun = pfun,
+      date = date,
+      verbose = verbose
+    )
   } else {
     # Use provided data
     if (verbose) {
@@ -327,13 +352,26 @@ prepare_territorial_maps <- function(situas_data = NULL,
   # Save shapefile (sf object with geometries)
   file_shapefile_rds <- file.path(
     output_dir,
-    paste0("situa_shapefile_", territorial_level, "_", pfun, "_", date_str, ".rds")
+    paste0(
+      "situa_shapefile_",
+      territorial_level,
+      "_",
+      pfun,
+      "_",
+      date_str,
+      ".rds"
+    )
   )
   saveRDS(shapefile_sf, file = file_shapefile_rds, compress = "xz")
   if (verbose) {
     file_size <- file.size(file_shapefile_rds)
-    message("  Saved shapefile: ", file_shapefile_rds,
-            " (", round(file_size / 1024^2, 2), " MB)")
+    message(
+      "  Saved shapefile: ",
+      file_shapefile_rds,
+      " (",
+      round(file_size / 1024^2, 2),
+      " MB)"
+    )
   }
 
   # Save SITUAS data table
@@ -344,8 +382,13 @@ prepare_territorial_maps <- function(situas_data = NULL,
   saveRDS(situas_data, file = file_situas_rds, compress = "xz")
   if (verbose) {
     file_size <- file.size(file_situas_rds)
-    message("  Saved SITUAS data: ", file_situas_rds,
-            " (", round(file_size / 1024^2, 2), " MB)")
+    message(
+      "  Saved SITUAS data: ",
+      file_situas_rds,
+      " (",
+      round(file_size / 1024^2, 2),
+      " MB)"
+    )
   }
 
   # 4. Join spatial and attribute data -----
@@ -356,11 +399,15 @@ prepare_territorial_maps <- function(situas_data = NULL,
 
   # Convert join field to character for consistent joining
   if (join_field %in% names(shapefile_sf)) {
-    shapefile_sf[[join_field]] <- as.character(as.integer(shapefile_sf[[join_field]]))
+    shapefile_sf[[join_field]] <- as.character(as.integer(shapefile_sf[[
+      join_field
+    ]]))
   }
 
   if (join_field %in% names(situas_data)) {
-    situas_data[[join_field]] <- as.character(as.integer(situas_data[[join_field]]))
+    situas_data[[join_field]] <- as.character(as.integer(situas_data[[
+      join_field
+    ]]))
   }
 
   # Create text version of join field with leading zeros if appropriate
@@ -373,7 +420,9 @@ prepare_territorial_maps <- function(situas_data = NULL,
     "ripartizioni" = 1
   )
 
-  if (!text_field %in% names(situas_data) && join_field %in% names(situas_data)) {
+  if (
+    !text_field %in% names(situas_data) && join_field %in% names(situas_data)
+  ) {
     situas_data[[text_field]] <- sprintf(
       paste0("%0", field_width, "d"),
       as.integer(situas_data[[join_field]])
@@ -387,11 +436,18 @@ prepare_territorial_maps <- function(situas_data = NULL,
   shapefile_cols <- names(shapefile_sf)
   situas_cols <- names(situas_data)
   common_cols <- intersect(shapefile_cols, situas_cols)
-  common_cols <- setdiff(common_cols, c(join_field, attr(shapefile_sf, "sf_column")))
+  common_cols <- setdiff(
+    common_cols,
+    c(join_field, attr(shapefile_sf, "sf_column"))
+  )
 
   if (length(common_cols) > 0 && verbose) {
-    message("  Resolving ", length(common_cols), " duplicate columns: ",
-            paste(common_cols, collapse = ", "))
+    message(
+      "  Resolving ",
+      length(common_cols),
+      " duplicate columns: ",
+      paste(common_cols, collapse = ", ")
+    )
   }
 
   # Remove conflicting columns from shapefile (keep SITUAS versions)
@@ -424,9 +480,14 @@ prepare_territorial_maps <- function(situas_data = NULL,
       message("  Successfully matched: ", n_matched, " ", territorial_level)
       if (n_unmatched > 0) {
         message("  Unmatched polygons: ", n_unmatched)
-        unmatched_codes <- territorial_map[[join_field]][is.na(territorial_map[[check_field]])]
+        unmatched_codes <- territorial_map[[join_field]][is.na(territorial_map[[
+          check_field
+        ]])]
         if (length(unmatched_codes) <= 10) {
-          message("  Unmatched codes: ", paste(unmatched_codes, collapse = ", "))
+          message(
+            "  Unmatched codes: ",
+            paste(unmatched_codes, collapse = ", ")
+          )
         }
       }
     }
@@ -445,7 +506,10 @@ prepare_territorial_maps <- function(situas_data = NULL,
     territorial_map <- territorial_map[, cols_to_keep]
 
     if (verbose) {
-      message("  Kept attributes: ", paste(setdiff(cols_to_keep, geom_col), collapse = ", "))
+      message(
+        "  Kept attributes: ",
+        paste(setdiff(cols_to_keep, geom_col), collapse = ", ")
+      )
     }
   }
 
@@ -467,7 +531,10 @@ prepare_territorial_maps <- function(situas_data = NULL,
       )
 
       size_after <- object.size(territorial_map)
-      reduction_pct <- round((1 - as.numeric(size_after) / as.numeric(size_before)) * 100, 1)
+      reduction_pct <- round(
+        (1 - as.numeric(size_after) / as.numeric(size_before)) * 100,
+        1
+      )
 
       if (verbose) {
         message("  Size before: ", format(size_before, units = "MB"))
@@ -489,7 +556,14 @@ prepare_territorial_maps <- function(situas_data = NULL,
 
   # Generate file names with territorial level, date, and report ID
   date_str <- format(as.Date(date), "%Y%m%d")
-  base_name <- paste0("situas_map_", territorial_level, "_", pfun, "_", date_str)
+  base_name <- paste0(
+    "situas_map_",
+    territorial_level,
+    "_",
+    pfun,
+    "_",
+    date_str
+  )
 
   # Output file paths
   file_rds <- file.path(output_dir, paste0(base_name, ".rds"))
@@ -500,7 +574,13 @@ prepare_territorial_maps <- function(situas_data = NULL,
   saveRDS(territorial_map, file = file_rds, compress = "xz")
   if (verbose) {
     file_size <- file.size(file_rds)
-    message("  Saved RDS: ", file_rds, " (", round(file_size / 1024^2, 2), " MB)")
+    message(
+      "  Saved RDS: ",
+      file_rds,
+      " (",
+      round(file_size / 1024^2, 2),
+      " MB)"
+    )
   }
 
   # Export GeoJSON
@@ -513,7 +593,13 @@ prepare_territorial_maps <- function(situas_data = NULL,
   )
   if (verbose) {
     file_size <- file.size(file_geojson)
-    message("  Saved GeoJSON: ", file_geojson, " (", round(file_size / 1024^2, 2), " MB)")
+    message(
+      "  Saved GeoJSON: ",
+      file_geojson,
+      " (",
+      round(file_size / 1024^2, 2),
+      " MB)"
+    )
   }
 
   # Export TopoJSON
@@ -528,19 +614,31 @@ prepare_territorial_maps <- function(situas_data = NULL,
 
       if (verbose) {
         file_size <- file.size(file_topojson)
-        message("  Saved TopoJSON: ", file_topojson, " (", round(file_size / 1024^2, 2), " MB)")
+        message(
+          "  Saved TopoJSON: ",
+          file_topojson,
+          " (",
+          round(file_size / 1024^2, 2),
+          " MB)"
+        )
       }
     },
     error = function(e) {
       warning(
-        "Failed to create TopoJSON file: ", e$message,
+        "Failed to create TopoJSON file: ",
+        e$message,
         "\nTrying alternative method via GeoJSON...",
         call. = FALSE
       )
 
       # Alternative method: write GeoJSON then convert
       temp_geojson <- tempfile(fileext = ".geojson")
-      sf::st_write(territorial_map, dsn = temp_geojson, driver = "GeoJSON", quiet = TRUE)
+      sf::st_write(
+        territorial_map,
+        dsn = temp_geojson,
+        driver = "GeoJSON",
+        quiet = TRUE
+      )
 
       # Read as text and convert to TopoJSON
       geojson_text <- paste(readLines(temp_geojson), collapse = "\n")
@@ -554,15 +652,26 @@ prepare_territorial_maps <- function(situas_data = NULL,
 
       if (verbose && file.exists(file_topojson)) {
         file_size <- file.size(file_topojson)
-        message("  Saved TopoJSON (alternative method): ", file_topojson,
-                " (", round(file_size / 1024^2, 2), " MB)")
+        message(
+          "  Saved TopoJSON (alternative method): ",
+          file_topojson,
+          " (",
+          round(file_size / 1024^2, 2),
+          " MB)"
+        )
       }
     }
   )
 
   if (verbose) {
     message("\n=== Complete! ===")
-    all_files <- c(file_shapefile_rds, file_situas_rds, file_rds, file_geojson, file_topojson)
+    all_files <- c(
+      file_shapefile_rds,
+      file_situas_rds,
+      file_rds,
+      file_geojson,
+      file_topojson
+    )
     message("Created ", sum(file.exists(all_files)), " files total")
   }
 
@@ -664,57 +773,66 @@ get_default_pfun <- function(territorial_level) {
 #'
 #' @keywords internal
 #' @noRd
-read_territorial_shapefile <- function(territorial_level = "comuni",
-                                        date = NULL,
-                                        verbose = TRUE) {
-
+read_territorial_shapefile <- function(
+  territorial_level = "comuni",
+  date = NULL,
+  verbose = TRUE
+) {
   # 1. First, check cache location from download_istat_boundaries() -----
-  tryCatch({
-    # Load boundaries metadata to find cached files
-    # Use get_boundaries_cache_dir() from download_boundaries.R
-    cache_dir <- tools::R_user_dir("situas", which = "data")
-    boundaries_dir <- file.path(cache_dir, "boundaries")
-    metadata_path <- file.path(boundaries_dir, "metadata.rds")
+  tryCatch(
+    {
+      # Load boundaries metadata to find cached files
+      # Use get_boundaries_cache_dir() from download_boundaries.R
+      cache_dir <- tools::R_user_dir("situas", which = "data")
+      boundaries_dir <- file.path(cache_dir, "boundaries")
+      metadata_path <- file.path(boundaries_dir, "metadata.rds")
 
-    if (file.exists(metadata_path)) {
-      metadata <- readRDS(metadata_path)
+      if (file.exists(metadata_path)) {
+        metadata <- readRDS(metadata_path)
 
-      # Filter for this territorial level
-      level_metadata <- metadata[metadata$territorial_level == territorial_level, ]
+        # Filter for this territorial level
+        level_metadata <- metadata[
+          metadata$territorial_level == territorial_level,
+        ]
 
-      if (nrow(level_metadata) > 0) {
-        # If date specified, try to find matching version
-        if (!is.null(date)) {
-          date_str <- format(as.Date(date), "%Y%m%d")
-          matching <- level_metadata[level_metadata$date == date_str, ]
+        if (nrow(level_metadata) > 0) {
+          # If date specified, try to find matching version
+          if (!is.null(date)) {
+            date_str <- format(as.Date(date), "%Y%m%d")
+            matching <- level_metadata[level_metadata$date == date_str, ]
 
-          if (nrow(matching) > 0) {
-            cached_file <- matching$file_path[1]
+            if (nrow(matching) > 0) {
+              cached_file <- matching$file_path[1]
+            } else {
+              cached_file <- NULL
+            }
           } else {
-            cached_file <- NULL
-          }
-        } else {
-          # Use most recent version
-          level_metadata <- level_metadata[order(level_metadata$date, decreasing = TRUE), ]
-          cached_file <- level_metadata$file_path[1]
-        }
-
-        # Check if cached file exists
-        if (!is.null(cached_file) && file.exists(cached_file)) {
-          if (verbose) {
-            message("  Reading shapefile from cache: ", basename(cached_file))
-            message("  Reference date: ", level_metadata$date[1])
+            # Use most recent version
+            level_metadata <- level_metadata[
+              order(level_metadata$date, decreasing = TRUE),
+            ]
+            cached_file <- level_metadata$file_path[1]
           }
 
-          shapefile_sf <- sf::st_read(cached_file, quiet = !verbose)
-          shapefile_sf <- ensure_wgs84_crs(shapefile_sf, verbose)
-          return(shapefile_sf)
+          # Check if cached file exists
+          if (!is.null(cached_file) && file.exists(cached_file)) {
+            if (verbose) {
+              message("  Reading shapefile from cache: ", basename(cached_file))
+              message("  Reference date: ", level_metadata$date[1])
+            }
+
+            shapefile_sf <- sf::st_read(cached_file, quiet = !verbose)
+            shapefile_sf <- normalize_boundary_fields(shapefile_sf)
+            shapefile_sf <- ensure_wgs84_crs(shapefile_sf, verbose)
+            return(shapefile_sf)
+          }
         }
       }
+    },
+    error = function(e) {
+      # Silently continue to next method if cache check fails
     }
-  }, error = function(e) {
-    # Silently continue to next method if cache check fails
-  })
+  )
 
   # 2. Find package root or use current directory -----
   pkg_root <- tryCatch(
@@ -760,12 +878,16 @@ read_territorial_shapefile <- function(territorial_level = "comuni",
       shp_path <- shp_files[1]
 
       if (verbose) {
-        message("  Reading shapefile from extracted files: ", basename(shp_path))
+        message(
+          "  Reading shapefile from extracted files: ",
+          basename(shp_path)
+        )
       }
 
       shapefile_sf <- sf::st_read(shp_path, quiet = !verbose)
 
-      # Verify and transform CRS
+      # Normalise attribute names and CRS across sources
+      shapefile_sf <- normalize_boundary_fields(shapefile_sf)
       shapefile_sf <- ensure_wgs84_crs(shapefile_sf, verbose)
 
       return(shapefile_sf)
@@ -776,7 +898,9 @@ read_territorial_shapefile <- function(territorial_level = "comuni",
   if (verbose) {
     message("  Extracted files not found. Extracting from zip...")
     message("  TIP: Run download_istat_boundaries() to cache shapefiles")
-    message("  Or: source('data-raw/extract_shapefiles.R') for local extraction")
+    message(
+      "  Or: source('data-raw/extract_shapefiles.R') for local extraction"
+    )
   }
 
   # Path to zip file
@@ -786,9 +910,15 @@ read_territorial_shapefile <- function(territorial_level = "comuni",
     stop(
       "Shapefile not found!\n",
       "Searched in:\n",
-      "  1. Cache: ", file.path(tools::R_user_dir("situas", which = "data"), "boundaries"), "\n",
-      "  2. Extracted: ", extracted_dir, "\n",
-      "  3. Zip archive: ", zip_path, "\n\n",
+      "  1. Cache: ",
+      file.path(tools::R_user_dir("situas", which = "data"), "boundaries"),
+      "\n",
+      "  2. Extracted: ",
+      extracted_dir,
+      "\n",
+      "  3. Zip archive: ",
+      zip_path,
+      "\n\n",
       "To download boundaries automatically, run:\n",
       "  download_istat_boundaries()\n\n",
       "Or download manually from: https://www.istat.it/it/archivio/222527",
@@ -817,7 +947,9 @@ read_territorial_shapefile <- function(territorial_level = "comuni",
 
   if (length(shp_files) == 0) {
     stop(
-      "No ", territorial_level, " shapefile found in zip archive",
+      "No ",
+      territorial_level,
+      " shapefile found in zip archive",
       call. = FALSE
     )
   }
@@ -831,7 +963,8 @@ read_territorial_shapefile <- function(territorial_level = "comuni",
 
   shapefile_sf <- sf::st_read(shp_path, quiet = !verbose)
 
-  # Verify and transform CRS
+  # Normalise attribute names and CRS across sources
+  shapefile_sf <- normalize_boundary_fields(shapefile_sf)
   shapefile_sf <- ensure_wgs84_crs(shapefile_sf, verbose)
 
   # Clean up temp directory
@@ -855,7 +988,9 @@ read_territorial_shapefile <- function(territorial_level = "comuni",
 ensure_wgs84_crs <- function(sf_obj, verbose = TRUE) {
   if (is.na(sf::st_crs(sf_obj))) {
     if (verbose) {
-      message("  Warning: Shapefile has no CRS defined. Assuming WGS84 (EPSG:4326)")
+      message(
+        "  Warning: Shapefile has no CRS defined. Assuming WGS84 (EPSG:4326)"
+      )
     }
     sf::st_crs(sf_obj) <- 4326
   } else if (sf::st_crs(sf_obj)$epsg != 4326) {

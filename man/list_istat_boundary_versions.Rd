@@ -27,8 +27,14 @@ A data.table with available versions, including:
   }
 }
 \description{
-Query available boundary shapefile versions from the OnData repository.
-Results are cached for 24 hours to reduce API calls.
+Query available boundary shapefile versions from the OnData repository. The
+list is read from the repository index, so it reflects the releases actually
+published (the series starts in 1991 and not every release falls on
+January 1st). Results are cached for 24 hours to reduce API calls.
+}
+\details{
+If the index cannot be reached, the function warns and returns the expected
+annual releases from 2020 onwards as a fallback.
 }
 \examples{
 \dontrun{
