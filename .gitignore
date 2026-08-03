@@ -54,6 +54,11 @@ rsconnect/
 renv/library/
 renv/staging/
 
+# Generated test outputs: prepare_territorial_maps() writes to its default
+# "data" directory when tests run with the working directory at tests/testthat,
+# producing one date-stamped set of files per run
+tests/testthat/data/
+
 # MacOS
 .DS_Store
 
